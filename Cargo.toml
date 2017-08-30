@@ -1,0 +1,17 @@
+[package]
+name = "flappy-rust"
+version = "0.1.0"
+authors = ["Ralph Caraveo <deckarep@gmail.com>"]
+build = "build.rs"
+
+[dependencies]
+rand = "0.3"
+ggez = { version = "0.3.3", features=["cargo-resource-root"] }
+serde_json = "*"
+
+[dependencies.tilesheet-marker]
+path = "../tilesheet-marker"
+version = "0.0.1"
+
+[features]
+cargo-resource-root = []
