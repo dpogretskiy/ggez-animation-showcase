@@ -1,6 +1,7 @@
 extern crate ggez;
 extern crate marker;
 extern crate serde_json;
+extern crate rand;
 
 mod sprite;
 mod state;
@@ -24,16 +25,23 @@ use player::Player;
 pub struct Game {
     pub player: Player,
     pub player_sm: StateMachine,
+    pub level: RenderableLevel,
 }
 
 
 impl Game {
     pub fn new(ctx: &mut Context) -> GameResult<Game> {
         let (p, sm) = Player::new(ctx)?;
+        let level = {
+            let l = Level::load(ctx, LevelType::Graveyard).unwrap();
+            let rl = RenderableLevel::build(l);
+            rl
+        };
 
         Ok(Game {
             player: p,
             player_sm: sm,
+            level,
         })
     }
 }
@@ -52,6 +60,11 @@ impl event::EventHandler for Game {
         let dest = Point::new(800.0, 500.0);
         self.player_sm.draw(ctx, dest, &self.player);
 
+        for &(ref img, ref dp, ref attr) in self.level.sprites.iter() {
+            graphics::draw_ex(ctx, &**img, dp.clone())?;
+
+        }
+
         graphics::present(ctx);
 
         timer::sleep_until_next_frame(ctx, 30);
@@ -63,8 +76,10 @@ impl event::EventHandler for Game {
     fn key_down_event(&mut self, keycode: Keycode, _keymod: Mod, repeat: bool) {
         if !repeat {
             match keycode {
-                Keycode::Left => self.player.player_input.x_axis = -1.0,
-                Keycode::Right => self.player.player_input.x_axis = 1.0,
+                Keycode::Left => self.player.player_input.left = true,
+                Keycode::Right => self.player.player_input.right = true,
+                Keycode::Up => self.player.player_input.up = true,
+                Keycode::Down => self.player.player_input.down = true,
                 Keycode::LCtrl => self.player.player_input.slide = true,
                 Keycode::Space => self.player.player_input.jump = true,
                 Keycode::LShift => self.player.player_input.attack = true,
@@ -77,13 +92,18 @@ impl event::EventHandler for Game {
         if !repeat {
             //wat?
             match keycode {
-                Keycode::Left => self.player.player_input.x_axis = 0.0,
-                Keycode::Right => self.player.player_input.x_axis = 0.0,
+                Keycode::Left => self.player.player_input.left = false,
+                Keycode::Right => self.player.player_input.right = false,
+                Keycode::Up => self.player.player_input.up = false,
+                Keycode::Down => self.player.player_input.down = false,
                 _ => (),
             }
         }
     }
 }
+
+use level::*;
+use marker::*;
 
 pub fn main() {
     let c = conf::Conf {
@@ -94,5 +114,7 @@ pub fn main() {
     };
     let ctx = &mut Context::load_from_conf("config", "me", c).unwrap();
     let mut state = Game::new(ctx).unwrap();
+
+
     event::run(ctx, &mut state).unwrap();
 }

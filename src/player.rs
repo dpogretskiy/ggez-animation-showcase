@@ -1,12 +1,10 @@
 use state::*;
 
 use ggez::graphics::draw_ex;
-use ggez::{Context, GameError, GameResult};
+use ggez::{Context, GameResult};
 
-use std::rc::Rc;
 use std::boxed::Box;
-use ggez::graphics::{DrawParam, Point, Rect};
-use sprite::MarkedTiles;
+use ggez::graphics::{DrawParam, Point};
 use sprite::Loader;
 use sprite::animation::Animated;
 
@@ -32,7 +30,10 @@ pub struct PlayerData {
 
 #[derive(Debug)]
 pub struct PlayerInput {
-    pub x_axis: f32,
+    pub up: bool,
+    pub down: bool,
+    pub left: bool,
+    pub right: bool,
     pub slide: bool,
     pub jump: bool,
     pub attack: bool,
@@ -41,7 +42,10 @@ pub struct PlayerInput {
 impl Default for PlayerInput {
     fn default() -> Self {
         PlayerInput {
-            x_axis: 0.0,
+            up: false,
+            down: false,
+            left: false,
+            right: false,
             slide: false,
             jump: false,
             attack: false,
@@ -64,9 +68,9 @@ impl PlayerInput {
 pub struct Idle;
 
 fn direction(input: &PlayerInput, og: &Direction) -> Direction {
-    if input.x_axis < 0.0 {
+    if input.left == true {
         Direction::Left
-    } else if input.x_axis > 0.0 {
+    } else if input.right == true {
         Direction::Right
     } else {
         og.clone()
@@ -82,24 +86,26 @@ impl State for Idle {
     }
     /// Executed on every frame before updating, for use in reacting to events.
     fn handle_events(&mut self, player: &mut Player) -> Trans {
-        let dir = direction(&player.player_input, &player.player_direction);
+        let pi = &mut player.player_input;
+
+        let dir = direction(&pi, &player.player_direction);
         player.player_direction = dir;
 
-        if player.player_input.x_axis != 0.0 {
+        if pi.left ^ pi.right {
             return Trans::Switch(Box::new(Running));
         };
 
-        let trans = if player.player_input.jump {
+        let trans = if pi.jump {
             Trans::Push(Box::new(Jumping))
-        } else if player.player_input.slide {
+        } else if pi.slide {
             Trans::Push(Box::new(Sliding))
-        } else if player.player_input.attack {
+        } else if pi.attack {
             Trans::Push(Box::new(Attacking))
         } else {
             Trans::None
         };
 
-        player.player_input.reset_actions();
+        pi.reset_actions();
         trans
     }
 
@@ -176,7 +182,7 @@ impl State for Running {
         let dir = direction(&player.player_input, &player.player_direction);
         player.player_direction = dir;
 
-        if player.player_input.x_axis == 0.0 {
+        if !player.player_input.right && !player.player_input.left {
             return Trans::Switch(Box::new(Idle));
         };
 
@@ -278,7 +284,10 @@ impl Player {
         let mut p = Player {
             data,
             player_input: PlayerInput {
-                x_axis: 0.0,
+                left: false,
+                right: false,
+                down: false,
+                up: false,
                 slide: false,
                 jump: false,
                 attack: false,
@@ -325,7 +334,7 @@ fn draw_animation_frame(
 
     draw_ex(
         ctx,
-        &ss.marked_tiles.image,
+        &*ss.marked_tiles.image,
         DrawParam {
             src: ss.current_frame_rect(),
             dest: dest,

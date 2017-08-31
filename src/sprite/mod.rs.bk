@@ -22,14 +22,11 @@ impl Loader {
         })?;
         let image = Image::new(ctx, format!("{}.png", name))?;
 
-        Ok(MarkedTiles {
-            data,
-            image: Rc::new(image),
-        })
+        Ok(MarkedTiles { data, image: Rc::new(image) })
     }
 }
 
 pub struct MarkedTiles {
     pub data: Vec<SpriteData>,
-    pub image: Rc<Image>,
+    pub image: Rc<Image> 
 }
