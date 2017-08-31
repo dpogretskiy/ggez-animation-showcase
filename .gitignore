@@ -2,7 +2,7 @@ target
 *.go
 /.idea/
 .DS_Store
-src/*.rs.bk
+*.rs.bk
 /.vscode/
 SDL2.dll
 /gnu-mingw/
