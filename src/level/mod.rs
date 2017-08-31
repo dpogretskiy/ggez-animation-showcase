@@ -1,8 +1,8 @@
 use ggez::graphics::Image;
-use ggez::Context;
+use ggez::{ Context, GameResult };
 
-use marker::SpriteData;
 use sprite::MarkedTiles;
+use sprite::Loader;
 
 pub enum LevelType {
     Graveyard,
@@ -15,11 +15,24 @@ pub struct LevelAssets {
 }
 
 impl LevelAssets {
-    pub fn load_sprite_sheet(ctx: &mut Context, tpe: LevelType) -> LevelAssets {
-        let location = match tpe {
-            LevelType::Graveyard => unimplemented!(),
+    pub fn load_assets(ctx: &mut Context, tpe: LevelType) -> GameResult<LevelAssets> {
+        let (g, o, bg) = match tpe {
+            LevelType::Graveyard => {
+                let g = Loader::load_sprite_sheet(ctx, "/graveyard/ground")?;
+                let o = Loader::load_sprite_sheet(ctx, "/graveyard/objects")?;
+                let bg = Image::new(ctx, "/graveyard/background.png")?;
+                (g, o, bg)
+            }
         };
-
-        unimplemented!()
+        Ok(LevelAssets {
+            ground: g,
+            objects: o,
+            background: bg,
+        })
     }
+}
+
+pub struct Level {
+    terrain: Vec<Vec<usize>>,
+    assets: LevelAssets
 }

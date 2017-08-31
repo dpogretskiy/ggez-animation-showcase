@@ -7,13 +7,8 @@ fn main() {
         let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let mut lib_dir = manifest_dir.clone();
         let mut dll_dir = manifest_dir.clone();
-        if target.contains("msvc") {
-            lib_dir.push("msvc");
-            dll_dir.push("msvc");
-        } else {
-            lib_dir.push("gnu-mingw");
-            dll_dir.push("gnu-mingw");
-        }
+        lib_dir.push("msvc");
+        dll_dir.push("msvc");
         lib_dir.push("lib");
         dll_dir.push("dll");
         if target.contains("x86_64") {

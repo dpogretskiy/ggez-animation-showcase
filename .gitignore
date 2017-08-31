@@ -5,3 +5,5 @@ target
 src/*.rs.bk
 /.vscode/
 SDL2.dll
+/gnu-mingw/
+/msvc/

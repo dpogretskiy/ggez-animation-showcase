@@ -1,5 +1,5 @@
 [root]
-name = "flappy-rust"
+name = "guide"
 version = "0.1.0"
 dependencies = [
  "ggez 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
