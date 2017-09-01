@@ -1,185 +1,102 @@
-[
-  {
-    "on_screen_frame": {
-      "x": 0.12864077,
-      "y": 0.18226601,
-      "w": 0.20873787,
-      "h": 0.21428572
-    },
-    "frame": {
-      "x": 53.0,
-      "y": 74.0,
-      "w": 86.0,
-      "h": 87.0
-    },
-    "markers": "Object",
-    "name": "ArrowSign.png",
-    "index": 0
-  },
-  {
-    "on_screen_frame": {
-      "x": 0.33737865,
-      "y": 0.18226601,
-      "w": 0.44174758,
-      "h": 0.22167487
-    },
-    "frame": {
-      "x": 139.0,
-      "y": 74.0,
-      "w": 182.0,
-      "h": 90.0
-    },
-    "markers": "Object",
-    "name": "Bush (1).png",
-    "index": 1
-  },
-  {
-    "on_screen_frame": {
-      "x": 0.37864077,
-      "y": 0.0,
-      "w": 0.24271844,
-      "h": 0.15763547
-    },
-    "frame": {
-      "x": 156.0,
-      "y": 0.0,
-      "w": 100.0,
-      "h": 64.0
-    },
-    "markers": "Object",
-    "name": "Bush (2).png",
-    "index": 2
-  },
-  {
-    "on_screen_frame": {
-      "x": 0.0,
-      "y": 0.41133004,
-      "w": 0.25728154,
-      "h": 0.26108375
-    },
-    "frame": {
-      "x": 0.0,
-      "y": 167.0,
-      "w": 106.0,
-      "h": 106.0
-    },
-    "markers": {
-      "Ground": {
-        "vertical": [
-          "Center",
-          "Bottom",
-          "Top"
-        ],
-        "horizontal": [
-          "Right",
-          "Left",
-          "Center"
-        ]
-      }
-    },
-    "name": "Crate.png",
-    "index": 3
-  },
-  {
-    "on_screen_frame": {
-      "x": 0.6213592,
-      "y": 0.0,
-      "w": 0.32038835,
-      "h": 0.18226601
-    },
-    "frame": {
-      "x": 256.0,
-      "y": 0.0,
-      "w": 132.0,
-      "h": 74.0
-    },
-    "markers": "Object",
-    "name": "DeadBush.png",
-    "index": 4
-  },
-  {
-    "on_screen_frame": {
-      "x": 0.7791262,
-      "y": 0.18226601,
-      "w": 0.22087379,
-      "h": 0.22906403
-    },
-    "frame": {
-      "x": 321.0,
-      "y": 74.0,
-      "w": 91.0,
-      "h": 93.0
-    },
-    "markers": "Object",
-    "name": "Sign.png",
-    "index": 5
-  },
-  {
-    "on_screen_frame": {
-      "x": 0.0,
-      "y": 0.0,
-      "w": 0.24757281,
-      "h": 0.12315271
-    },
-    "frame": {
-      "x": 0.0,
-      "y": 0.0,
-      "w": 102.0,
-      "h": 50.0
-    },
-    "markers": "Object",
-    "name": "Skeleton.png",
-    "index": 6
-  },
-  {
-    "on_screen_frame": {
-      "x": 0.24757281,
-      "y": 0.0,
-      "w": 0.13106796,
-      "h": 0.13546798
-    },
-    "frame": {
-      "x": 102.0,
-      "y": 0.0,
-      "w": 54.0,
-      "h": 55.0
-    },
-    "markers": "Object",
-    "name": "TombStone (1).png",
-    "index": 7
-  },
-  {
-    "on_screen_frame": {
-      "x": 0.0,
-      "y": 0.18226601,
-      "w": 0.12864077,
-      "h": 0.18719211
-    },
-    "frame": {
-      "x": 0.0,
-      "y": 74.0,
-      "w": 53.0,
-      "h": 76.0
-    },
-    "markers": "Object",
-    "name": "TombStone (2).png",
-    "index": 8
-  },
-  {
-    "on_screen_frame": {
-      "x": 0.25728154,
-      "y": 0.41133004,
-      "w": 0.69417477,
-      "h": 0.58866996
-    },
-    "frame": {
-      "x": 106.0,
-      "y": 167.0,
-      "w": 286.0,
-      "h": 239.0
-    },
-    "markers": "Object",
-    "name": "Tree.png",
-    "index": 9
-  }
-]
+{"frames": [
+
+{
+	"filename": "ArrowSign.png",
+	"frame": {"x":53,"y":74,"w":86,"h":87},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":86,"h":87},
+	"sourceSize": {"w":86,"h":87},
+	"pivot": {"x":0.5,"y":0.5}
+},
+{
+	"filename": "Bush (1).png",
+	"frame": {"x":139,"y":74,"w":182,"h":90},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":182,"h":90},
+	"sourceSize": {"w":182,"h":90},
+	"pivot": {"x":0.5,"y":0.5}
+},
+{
+	"filename": "Bush (2).png",
+	"frame": {"x":156,"y":0,"w":100,"h":64},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":100,"h":64},
+	"sourceSize": {"w":100,"h":64},
+	"pivot": {"x":0.5,"y":0.5}
+},
+{
+	"filename": "Crate.png",
+	"frame": {"x":0,"y":167,"w":106,"h":106},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":106,"h":106},
+	"sourceSize": {"w":106,"h":106},
+	"pivot": {"x":0.5,"y":0.5}
+},
+{
+	"filename": "DeadBush.png",
+	"frame": {"x":256,"y":0,"w":132,"h":74},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":132,"h":74},
+	"sourceSize": {"w":132,"h":74},
+	"pivot": {"x":0.5,"y":0.5}
+},
+{
+	"filename": "Sign.png",
+	"frame": {"x":321,"y":74,"w":91,"h":93},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":91,"h":93},
+	"sourceSize": {"w":91,"h":93},
+	"pivot": {"x":0.5,"y":0.5}
+},
+{
+	"filename": "Skeleton.png",
+	"frame": {"x":0,"y":0,"w":102,"h":50},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":102,"h":50},
+	"sourceSize": {"w":102,"h":50},
+	"pivot": {"x":0.5,"y":0.5}
+},
+{
+	"filename": "TombStone (1).png",
+	"frame": {"x":102,"y":0,"w":54,"h":55},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":54,"h":55},
+	"sourceSize": {"w":54,"h":55},
+	"pivot": {"x":0.5,"y":0.5}
+},
+{
+	"filename": "TombStone (2).png",
+	"frame": {"x":0,"y":74,"w":53,"h":76},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":53,"h":76},
+	"sourceSize": {"w":53,"h":76},
+	"pivot": {"x":0.5,"y":0.5}
+},
+{
+	"filename": "Tree.png",
+	"frame": {"x":106,"y":167,"w":286,"h":239},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":286,"h":239},
+	"sourceSize": {"w":286,"h":239},
+	"pivot": {"x":0.5,"y":0.5}
+}],
+"meta": {
+	"app": "http://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "level_objects.png",
+	"format": "RGBA8888",
+	"size": {"w":412,"h":406},
+	"scale": "1",
+	"smartupdate": "$TexturePacker:SmartUpdate:f90df3354f4fb8d536305c0f1a7adf3d:ea71446903e9e9dc213b4f63ef2fa378:178c290dd96dfe5310a0fd756dafa263$"
+}
+}
