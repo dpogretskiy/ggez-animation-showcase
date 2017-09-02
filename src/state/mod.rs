@@ -2,6 +2,7 @@ use ggez::Context;
 use ggez::graphics::Point;
 
 use super::player::*;
+use super::camera::*;
 
 use std::fmt::{Debug, Formatter};
 use std::result::Result;
@@ -45,7 +46,7 @@ pub trait State {
         Trans::None
     }
 
-    fn draw(&mut self, ctx: &mut Context, player: &Player, dest: Point) {}
+    fn draw(&mut self, ctx: &mut Context, player: &Player, camera: &Camera) {}
 }
 
 #[derive(Debug)]
@@ -65,9 +66,9 @@ impl StateMachine {
         }
     }
 
-    pub fn draw(&mut self, ctx: &mut Context, dest: Point, player: &Player) {
+    pub fn draw(&mut self, ctx: &mut Context, camera: &Camera, player: &Player) {
         if let Some(state) = self.state_stack.last_mut() {
-            state.draw(ctx, player, dest);
+            state.draw(ctx, player, camera);
         }
     }
 

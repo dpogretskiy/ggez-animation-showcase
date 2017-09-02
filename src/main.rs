@@ -3,17 +3,21 @@ extern crate marker;
 extern crate serde_json;
 extern crate rand;
 
+extern crate nalgebra as na;
+pub type Point2 = na::Point2<f64>;
+pub type Vector2 = na::Vector2<f64>;
+
 mod sprite;
 mod state;
 mod player;
 mod level;
+mod camera;
 
 use ggez::conf;
 use ggez::event;
 use ggez::timer;
 use ggez::graphics;
 use ggez::{Context, GameResult};
-use ggez::graphics::{Point, Rect};
 use ggez::event::{Keycode, Mod};
 
 
@@ -21,11 +25,13 @@ use std::time::Duration;
 
 use state::StateMachine;
 use player::Player;
+use camera::*;
 
 pub struct Game {
     pub player: Player,
     pub player_sm: StateMachine,
     pub level: RenderableLevel,
+    pub camera: Camera,
 }
 
 
@@ -38,10 +44,13 @@ impl Game {
             rl
         };
 
+        let (w, h) = (ctx.conf.window_width, ctx.conf.window_height);
+
         Ok(Game {
             player: p,
             player_sm: sm,
             level,
+            camera: Camera::new(w, h, 1600.0, 1000.0)
         })
     }
 }
@@ -49,20 +58,25 @@ impl Game {
 
 impl event::EventHandler for Game {
     fn update(&mut self, _ctx: &mut Context, _dt: Duration) -> GameResult<()> {
-        self.player_sm.update(&mut self.player);
         self.player_sm.handle_events(&mut self.player);
+        self.player_sm.update(&mut self.player);
+
+        //ayy
+        self.player.coordinates += self.player.velocity;
+
+        self.camera.move_to(self.player.coordinates);
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx);
 
-        let dest = Point::new(800.0, 500.0);
-        self.player_sm.draw(ctx, dest, &self.player);
+        let camera = &self.camera;
+
+        self.player_sm.draw(ctx, camera, &self.player);
 
         for &(ref img, ref dp, ref attr) in self.level.sprites.iter() {
-            graphics::draw_ex(ctx, &**img, dp.clone())?;
-
+            (&**img).draw_ex_camera(camera, ctx, dp.clone())?;
         }
 
         graphics::present(ctx);
@@ -103,13 +117,12 @@ impl event::EventHandler for Game {
 }
 
 use level::*;
-use marker::*;
 
 pub fn main() {
     let c = conf::Conf {
         window_height: 1000,
         window_width: 1600,
-        resizable: true,
+        resizable: false,
         ..Default::default()
     };
     let ctx = &mut Context::load_from_conf("config", "me", c).unwrap();

@@ -8,6 +8,7 @@ build = "build.rs"
 rand = "0.3"
 ggez = { version = "0.3.3", features=["cargo-resource-root"] }
 serde_json = "*"
+nalgebra = "*"
 
 [dependencies.tilesheet-marker]
 path = "../tilesheet-marker"

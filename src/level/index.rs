@@ -8,8 +8,7 @@ use rand;
 
 #[derive(Debug)]
 struct GroundIndex {
-    vertical: HashMap<Vertical, Vec<Rect>>,
-    horizontal: HashMap<Horizontal, Vec<Rect>>,
+    square: HashMap<Square, Vec<Rect>>,
 }
 #[derive(Debug)]
 struct PlatformIndex {
@@ -30,8 +29,7 @@ pub struct LevelAssetIndex {
 
 impl LevelAssetIndex {
     pub fn build(ground: &MarkedTiles, objects: &MarkedTiles) -> LevelAssetIndex {
-        let mut ground_ver: HashMap<Vertical, Vec<Rect>> = HashMap::with_capacity(3);
-        let mut ground_hor: HashMap<Horizontal, Vec<Rect>> = HashMap::with_capacity(3);
+        let mut ground_sqr: HashMap<Square, Vec<Rect>> = HashMap::with_capacity(3);
         let mut platform_hor: HashMap<Horizontal, Vec<Rect>> = HashMap::with_capacity(3);
         let mut ground_obj = vec![];
         let mut surface_obj = vec![];
@@ -39,33 +37,19 @@ impl LevelAssetIndex {
         for gd in ground.data.iter() {
             match &gd.markers {
                 &SpriteType::Ground {
-                    horizontal: ref hor,
-                    vertical: ref ver,
+                    square: ref sqr,
                 } => {
-                    for h in hor.iter() {
+                    for s in sqr.iter() {
                         let mut p = true;
                         {
-                            let entry = ground_hor.get_mut(h);
+                            let entry = ground_sqr.get_mut(s);
                             if let Some(e) = entry {
                                 e.push(gd.on_screen_frame.clone());
                                 p = false;
                             };
                         }
                         if p {
-                            ground_hor.insert(h.clone(), vec![gd.on_screen_frame.clone()]);
-                        };
-                    }
-                    for v in ver.iter() {
-                        let mut p = true;
-                        {
-                            let entry = ground_ver.get_mut(v);
-                            if let Some(e) = entry {
-                                e.push(gd.on_screen_frame.clone());
-                                p = false;
-                            };
-                        }
-                        if p {
-                            ground_ver.insert(v.clone(), vec![gd.on_screen_frame.clone()]);
+                            ground_sqr.insert(s.clone(), vec![gd.on_screen_frame.clone()]);
                         };
                     }
                 }
@@ -89,8 +73,7 @@ impl LevelAssetIndex {
 
         let index = LevelAssetIndex {
             ground: GroundIndex {
-                vertical: ground_ver,
-                horizontal: ground_hor,
+                square: ground_sqr,
             },
             objects: ObjectIndex {
                 ground: ground_obj,
@@ -103,24 +86,8 @@ impl LevelAssetIndex {
         index
     }
 
-    pub fn find_ground(&self, hor: Horizontal, ver: Vertical) -> Option<Rect> {
-        let mut result = vec![];
-
-        for opt_vec_h in self.ground.horizontal.get(&hor).iter() {
-            for h in opt_vec_h.iter() {
-                for opt_vec_v in self.ground.vertical.get(&ver).iter() {
-                    for v in opt_vec_v.iter() {
-                        if v == h {
-                            result.push(v.clone())
-                        };
-                    }
-                }
-            }
-        }
-
-        println!("{:?}", result);
-
-        random_from(&result)
+    pub fn find_ground(&self, sqr: Square) -> Option<Rect> {
+        self.ground.square.get(&sqr).and_then(random_from)
     }
     pub fn find_platform(&self, hor: Horizontal) -> Option<Rect> {
         self.platforms.horizontal.get(&hor).and_then(random_from)

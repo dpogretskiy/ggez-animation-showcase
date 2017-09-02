@@ -1,12 +1,12 @@
 use state::*;
 
-use ggez::graphics::draw_ex;
 use ggez::{Context, GameResult};
 
 use std::boxed::Box;
 use ggez::graphics::{DrawParam, Point};
 use sprite::Loader;
 use sprite::animation::Animated;
+use super::camera::*;
 
 #[derive(Clone, Debug)]
 pub enum Direction {
@@ -17,15 +17,91 @@ pub enum Direction {
 pub struct Player {
     data: PlayerData,
     pub player_input: PlayerInput,
-    player_direction: Direction,
+    direction: Direction,
+    pub coordinates: Vector2,
+    pub velocity: Vector2,
 }
 
+impl Player {
+    pub fn new(ctx: &mut Context) -> GameResult<(Player, StateMachine)> {
+        let data = PlayerData::new(ctx)?;
+
+        let mut p = Player {
+            data,
+            player_input: PlayerInput {
+                left: false,
+                right: false,
+                down: false,
+                up: false,
+                slide: false,
+                jump: false,
+                attack: false,
+            },
+            direction: Direction::Right,
+            coordinates: Vector2::new(300.0, 300.0),
+            velocity: Vector2::new(0.0, 0.0),
+        };
+
+        let mut sm = StateMachine::new(Idle);
+        sm.start(&mut p);
+
+        Ok((p, sm))
+    }
+}
+
+fn draw_animation_frame(
+    player: &Player,
+    ctx: &mut Context,
+    camera: &Camera,
+    ss: &Animated,
+    direction: &Direction,
+) -> GameResult<()> {
+    let d: f32 = match *direction {
+        Direction::Left => -0.4,
+        Direction::Right => 0.4,
+    };
+
+    let dest = Point::new(player.coordinates.x as f32, player.coordinates.y as f32);
+
+    (&*ss.marked_tiles.image).draw_ex_camera(
+        camera,
+        ctx,
+        DrawParam {
+            src: ss.current_frame_rect(),
+            dest,
+            rotation: 0.0,
+            scale: Point::new(d, 0.4),
+            offset: Point::new(0.0, 0.0),
+            ..Default::default()
+        },
+    )?;
+
+    Ok(())
+}
 pub struct PlayerData {
     idle: Animated,
     running: Animated,
     jumping: Animated,
     attacking: Animated,
     sliding: Animated,
+}
+
+impl PlayerData {
+    pub fn new(ctx: &mut Context) -> GameResult<PlayerData> {
+        let idle = Loader::load_sprite_sheet(ctx, "/idle")?;
+        let attacking = Loader::load_sprite_sheet(ctx, "/attack")?;
+        let jumping = Loader::load_sprite_sheet(ctx, "/jump")?;
+        let running = Loader::load_sprite_sheet(ctx, "/run")?;
+        let sliding = Loader::load_sprite_sheet(ctx, "/slide")?;
+
+        Ok(PlayerData {
+            idle: Animated::new(idle),
+            jumping: Animated::new(jumping),
+            running: Animated::new(running),
+            attacking: Animated::new(attacking),
+            sliding: Animated::new(sliding),
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -88,8 +164,8 @@ impl State for Idle {
     fn handle_events(&mut self, player: &mut Player) -> Trans {
         let pi = &mut player.player_input;
 
-        let dir = direction(&pi, &player.player_direction);
-        player.player_direction = dir;
+        let dir = direction(&pi, &player.direction);
+        player.direction = dir;
 
         if pi.left ^ pi.right {
             return Trans::Switch(Box::new(Running));
@@ -114,8 +190,14 @@ impl State for Idle {
         Trans::None
     }
 
-    fn draw(&mut self, ctx: &mut Context, player: &Player, dest: Point) {
-        draw_animation_frame(ctx, dest, &player.data.idle, &player.player_direction);
+    fn draw(&mut self, ctx: &mut Context, player: &Player, camera: &Camera) {
+        draw_animation_frame(
+            player,
+            ctx,
+            camera,
+            &player.data.idle,
+            &player.direction,
+        );
     }
 }
 
@@ -133,8 +215,8 @@ impl State for Attacking {
     }
 
     fn handle_events(&mut self, player: &mut Player) -> Trans {
-        let dir = direction(&player.player_input, &player.player_direction);
-        player.player_direction = dir;
+        let dir = direction(&player.player_input, &player.direction);
+        player.direction = dir;
 
         let t = if self.can_cancel(player) {
             if player.player_input.jump {
@@ -163,8 +245,14 @@ impl State for Attacking {
         }
     }
 
-    fn draw(&mut self, ctx: &mut Context, player: &Player, dest: Point) {
-        draw_animation_frame(ctx, dest, &player.data.attacking, &player.player_direction);
+    fn draw(&mut self, ctx: &mut Context, player: &Player, camera: &Camera) {
+        draw_animation_frame(
+            player,
+            ctx,
+            &camera,
+            &player.data.attacking,
+            &player.direction,
+        );
     }
 }
 
@@ -173,14 +261,26 @@ pub struct Running;
 impl State for Running {
     fn on_start(&mut self, player: &mut Player) {
         player.data.running.reset();
+        let x = match player.direction {
+            Direction::Left => -30.0,
+            Direction::Right => 30.0,
+        };
+        let velo = Vector2::new(x, 0.0);
+        player.velocity = velo;
     }
     fn on_resume(&mut self, player: &mut Player) {
         player.data.running.reset();
     }
+    fn on_pause(&mut self, player: &mut Player) {
+        player.velocity = Vector2::new(0.0, 0.0);
+    }
+    fn on_stop(&mut self, player: &mut Player) {
+        self.on_pause(player);
+    }
 
     fn handle_events(&mut self, player: &mut Player) -> Trans {
-        let dir = direction(&player.player_input, &player.player_direction);
-        player.player_direction = dir;
+        let dir = direction(&player.player_input, &player.direction);
+        player.direction = dir;
 
         if !player.player_input.right && !player.player_input.left {
             return Trans::Switch(Box::new(Idle));
@@ -205,8 +305,14 @@ impl State for Running {
         Trans::None
     }
 
-    fn draw(&mut self, ctx: &mut Context, player: &Player, dest: Point) {
-        draw_animation_frame(ctx, dest, &player.data.running, &player.player_direction);
+    fn draw(&mut self, ctx: &mut Context, player: &Player, camera: &Camera) {
+        draw_animation_frame(
+            player,
+            ctx,
+            camera,
+            &player.data.running,
+            &player.direction,
+        );
     }
 }
 
@@ -218,8 +324,8 @@ impl State for Jumping {
     }
 
     fn handle_events(&mut self, player: &mut Player) -> Trans {
-        let dir = direction(&player.player_input, &player.player_direction);
-        player.player_direction = dir;
+        let dir = direction(&player.player_input, &player.direction);
+        player.direction = dir;
 
         let t = if player.player_input.attack {
             Trans::Switch(Box::new(Attacking))
@@ -240,8 +346,14 @@ impl State for Jumping {
         }
     }
 
-    fn draw(&mut self, ctx: &mut Context, player: &Player, dest: Point) {
-        draw_animation_frame(ctx, dest, &player.data.jumping, &player.player_direction);
+    fn draw(&mut self, ctx: &mut Context, player: &Player, camera: &Camera) {
+        draw_animation_frame(
+            player,
+            ctx,
+            camera,
+            &player.data.jumping,
+            &player.direction,
+        );
     }
 }
 
@@ -272,76 +384,13 @@ impl State for Sliding {
         }
     }
 
-    fn draw(&mut self, ctx: &mut Context, player: &Player, dest: Point) {
-        draw_animation_frame(ctx, dest, &player.data.sliding, &player.player_direction);
+    fn draw(&mut self, ctx: &mut Context, player: &Player, camera: &Camera) {
+        draw_animation_frame(
+            player,
+            ctx,
+            camera,
+            &player.data.sliding,
+            &player.direction,
+        );
     }
-}
-
-impl Player {
-    pub fn new(ctx: &mut Context) -> GameResult<(Player, StateMachine)> {
-        let data = PlayerData::new(ctx)?;
-
-        let mut p = Player {
-            data,
-            player_input: PlayerInput {
-                left: false,
-                right: false,
-                down: false,
-                up: false,
-                slide: false,
-                jump: false,
-                attack: false,
-            },
-            player_direction: Direction::Right,
-        };
-
-        let mut sm = StateMachine::new(Idle);
-        sm.start(&mut p);
-
-        Ok((p, sm))
-    }
-}
-
-
-impl PlayerData {
-    pub fn new(ctx: &mut Context) -> GameResult<PlayerData> {
-        let idle = Loader::load_sprite_sheet(ctx, "/idle")?;
-        let attacking = Loader::load_sprite_sheet(ctx, "/attack")?;
-        let jumping = Loader::load_sprite_sheet(ctx, "/jump")?;
-        let running = Loader::load_sprite_sheet(ctx, "/run")?;
-        let sliding = Loader::load_sprite_sheet(ctx, "/slide")?;
-
-        Ok(PlayerData {
-            idle: Animated::new(idle),
-            jumping: Animated::new(jumping),
-            running: Animated::new(running),
-            attacking: Animated::new(attacking),
-            sliding: Animated::new(sliding),
-        })
-    }
-}
-
-fn draw_animation_frame(
-    ctx: &mut Context,
-    dest: Point,
-    ss: &Animated,
-    direction: &Direction,
-) -> GameResult<()> {
-    let d: f32 = match *direction {
-        Direction::Left => -0.5,
-        Direction::Right => 0.5,
-    };
-
-    draw_ex(
-        ctx,
-        &*ss.marked_tiles.image,
-        DrawParam {
-            src: ss.current_frame_rect(),
-            dest: dest,
-            rotation: 0.0,
-            scale: Point::new(d, 0.5),
-            offset: Point::new(0.0, 0.0),
-            ..Default::default()
-        },
-    )
 }
