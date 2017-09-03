@@ -159,7 +159,7 @@ impl StateMachine {
                 state.on_stop(player);
             }
 
-            if let Some(mut state) = self.state_stack.last_mut() {
+            if let Some(state) = self.state_stack.last_mut() {
                 state.on_resume(player);
             } else {
                 self.running = false;

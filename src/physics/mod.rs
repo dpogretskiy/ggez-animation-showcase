@@ -1,5 +1,5 @@
 
-use super::{Point2, Vector2};
+use super::Vector2;
 use std::time::Duration;
 
 #[derive(Debug)]
@@ -57,7 +57,7 @@ impl MovingObject {
             velocity: Vector2::new(0.0, 0.0),
             scale: Vector2::new(1.0, 1.0),
             aabb: AABB::new_full(position.clone(), size.clone()),
-            aabb_offset: size, 
+            aabb_offset: size,
             pushed_right_wall: false,
             pushed_left_wall: false,
             pushes_left_wall: false,

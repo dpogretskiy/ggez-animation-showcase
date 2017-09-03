@@ -221,8 +221,8 @@ impl State for Running {
     fn on_resume(&mut self, player: &mut Player) {
         self.on_start(player);
     }
-    fn on_pause(&mut self, player: &mut Player) {}
-    fn on_stop(&mut self, player: &mut Player) {}
+    fn on_pause(&mut self, _player: &mut Player) {}
+    fn on_stop(&mut self, _player: &mut Player) {}
 
     fn handle_events(&mut self, player: &mut Player) -> Trans {
         player.direct();
