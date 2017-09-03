@@ -5,6 +5,7 @@ pub struct Animated {
     pub marked_tiles: MarkedTiles,
     pub current_frame: usize,
     pub length: usize,
+    pub roll_forward: bool,
 }
 
 impl Animated {
@@ -15,6 +16,34 @@ impl Animated {
             marked_tiles: mt,
             current_frame: 0,
             length,
+            roll_forward: true,
+        }
+    }
+
+    pub fn roll_frames(&mut self) {
+        if self.roll_forward {
+            if self.next_frame() {
+            } else {
+                self.roll_forward = false;
+                self.roll_frames();
+            }
+        } else {
+            if self.previous_frame() {
+            } else {
+                self.roll_forward = true;
+                self.roll_frames();
+            }
+        }
+    }
+
+    pub fn previous_frame(&mut self) -> bool {
+        let cf = self.current_frame;
+
+        if cf > 0 {
+            self.current_frame = cf - 1;
+            true
+        } else {
+            false
         }
     }
 

@@ -3,10 +3,15 @@ use state::*;
 use ggez::{Context, GameResult};
 
 use std::boxed::Box;
+use std::time::Duration;
+
 use ggez::graphics::{DrawParam, Point};
+
+use super::camera::*;
+use super::physics::MovingObject;
+use super::physics::seconds;
 use sprite::Loader;
 use sprite::animation::Animated;
-use super::camera::*;
 
 #[derive(Clone, Debug)]
 pub enum Direction {
@@ -16,19 +21,18 @@ pub enum Direction {
 
 pub struct Player {
     data: PlayerData,
-    pub player_input: PlayerInput,
-    direction: Direction,
-    pub coordinates: Vector2,
-    pub velocity: Vector2,
+    pub input: PlayerInput,
+    pub direction: Direction,
+    pub mv: MovingObject,
 }
 
 impl Player {
     pub fn new(ctx: &mut Context) -> GameResult<(Player, StateMachine)> {
-        let data = PlayerData::new(ctx)?;
-
+        let scale = 0.4;
+        let data = PlayerData::new(ctx, scale)?;
         let mut p = Player {
             data,
-            player_input: PlayerInput {
+            input: PlayerInput {
                 left: false,
                 right: false,
                 down: false,
@@ -38,8 +42,7 @@ impl Player {
                 attack: false,
             },
             direction: Direction::Right,
-            coordinates: Vector2::new(300.0, 300.0),
-            velocity: Vector2::new(0.0, 0.0),
+            mv: MovingObject::new(Vector2::new(300.0, 300.0), Vector2::new(290.0, 500.0)),
         };
 
         let mut sm = StateMachine::new(Idle);
@@ -47,6 +50,21 @@ impl Player {
 
         Ok((p, sm))
     }
+
+    pub fn direct(&mut self) {
+        if self.input.left ^ self.input.right {
+            if self.input.left {
+                self.direction = Direction::Left;
+            } else {
+                self.direction = Direction::Right;
+            }
+        };
+    }
+
+    const GRAVITY: f64 = -1500.0;
+    const MAX_FALLING_SPEED: f64 = -4000.0;
+    const JUMP_SPEED: f64 = 2000.0;
+    const WALK_SPEED: f64 = 400.0;
 }
 
 fn draw_animation_frame(
@@ -57,11 +75,11 @@ fn draw_animation_frame(
     direction: &Direction,
 ) -> GameResult<()> {
     let d: f32 = match *direction {
-        Direction::Left => -0.4,
-        Direction::Right => 0.4,
+        Direction::Left => -player.data.scale,
+        Direction::Right => player.data.scale,
     };
 
-    let dest = Point::new(player.coordinates.x as f32, player.coordinates.y as f32);
+    let dest = Point::new(player.mv.position.x as f32, player.mv.position.y as f32);
 
     (&*ss.marked_tiles.image).draw_ex_camera(
         camera,
@@ -70,7 +88,7 @@ fn draw_animation_frame(
             src: ss.current_frame_rect(),
             dest,
             rotation: 0.0,
-            scale: Point::new(d, 0.4),
+            scale: Point::new(d, player.data.scale),
             offset: Point::new(0.0, 0.0),
             ..Default::default()
         },
@@ -79,6 +97,7 @@ fn draw_animation_frame(
     Ok(())
 }
 pub struct PlayerData {
+    scale: f32,
     idle: Animated,
     running: Animated,
     jumping: Animated,
@@ -87,7 +106,7 @@ pub struct PlayerData {
 }
 
 impl PlayerData {
-    pub fn new(ctx: &mut Context) -> GameResult<PlayerData> {
+    pub fn new(ctx: &mut Context, scale: f64) -> GameResult<PlayerData> {
         let idle = Loader::load_sprite_sheet(ctx, "/idle")?;
         let attacking = Loader::load_sprite_sheet(ctx, "/attack")?;
         let jumping = Loader::load_sprite_sheet(ctx, "/jump")?;
@@ -95,6 +114,7 @@ impl PlayerData {
         let sliding = Loader::load_sprite_sheet(ctx, "/slide")?;
 
         Ok(PlayerData {
+            scale: scale as f32,
             idle: Animated::new(idle),
             jumping: Animated::new(jumping),
             running: Animated::new(running),
@@ -143,36 +163,29 @@ impl PlayerInput {
 
 pub struct Idle;
 
-fn direction(input: &PlayerInput, og: &Direction) -> Direction {
-    if input.left == true {
-        Direction::Left
-    } else if input.right == true {
-        Direction::Right
-    } else {
-        og.clone()
-    }
-}
-
 impl State for Idle {
     fn on_start(&mut self, player: &mut Player) {
+        println!("Idle reset...");
         player.data.idle.reset();
+        player.mv.velocity = Vector2::new(0.0, 0.0);
     }
     fn on_resume(&mut self, player: &mut Player) {
-        player.data.idle.reset();
+        self.on_start(player);
     }
     /// Executed on every frame before updating, for use in reacting to events.
     fn handle_events(&mut self, player: &mut Player) -> Trans {
-        let pi = &mut player.player_input;
+        player.direct();
 
-        let dir = direction(&pi, &player.direction);
-        player.direction = dir;
+        let pi = &mut player.input;
+        let mv = &mut player.mv;
 
-        if pi.left ^ pi.right {
-            return Trans::Switch(Box::new(Running));
-        };
-
-        let trans = if pi.jump {
+        let trans = if !mv.on_ground {
             Trans::Push(Box::new(Jumping))
+        } else if pi.jump {
+            mv.velocity.y = Player::JUMP_SPEED;
+            Trans::Push(Box::new(Jumping))
+        } else if pi.left ^ pi.right {
+            Trans::Push(Box::new(Running))
         } else if pi.slide {
             Trans::Push(Box::new(Sliding))
         } else if pi.attack {
@@ -185,19 +198,182 @@ impl State for Idle {
         trans
     }
 
+    fn update(&mut self, player: &mut Player, duration: &Duration) -> Trans {
+        player.mv.update_physics(duration);
+        Trans::None
+    }
+
     fn fixed_update(&mut self, player: &mut Player) -> Trans {
-        player.data.idle.cycle_frames();
+        player.data.idle.roll_frames();
         Trans::None
     }
 
     fn draw(&mut self, ctx: &mut Context, player: &Player, camera: &Camera) {
-        draw_animation_frame(
-            player,
-            ctx,
-            camera,
-            &player.data.idle,
-            &player.direction,
-        );
+        draw_animation_frame(player, ctx, camera, &player.data.idle, &player.direction).unwrap();
+    }
+}
+pub struct Running;
+
+impl State for Running {
+    fn on_start(&mut self, player: &mut Player) {
+        player.data.running.reset();
+    }
+    fn on_resume(&mut self, player: &mut Player) {
+        self.on_start(player);
+    }
+    fn on_pause(&mut self, player: &mut Player) {}
+    fn on_stop(&mut self, player: &mut Player) {}
+
+    fn handle_events(&mut self, player: &mut Player) -> Trans {
+        player.direct();
+        let pi = &mut player.input;
+        let mv = &mut player.mv;
+
+        if !(pi.left ^ pi.right) {
+            return Trans::Switch(Box::new(Idle));
+        };
+
+        let t = if !mv.on_ground {
+            Trans::Push(Box::new(Jumping))
+        } else if pi.jump {
+            mv.velocity.y = Player::JUMP_SPEED;
+            Trans::Push(Box::new(Jumping))
+        } else if pi.slide {
+            Trans::Push(Box::new(Sliding))
+        } else if pi.attack {
+            Trans::Push(Box::new(Attacking))
+        } else {
+            Trans::None
+        };
+
+        pi.reset_actions();
+        t
+    }
+
+    fn update(&mut self, player: &mut Player, duration: &Duration) -> Trans {
+        match player.direction {
+            Direction::Left => if player.mv.pushes_left_wall {
+                player.mv.velocity.x = 0.0;
+            } else {
+                player.mv.velocity.x = -Player::WALK_SPEED;
+            },
+            Direction::Right => if player.mv.pushes_right_wall {
+                player.mv.velocity.x = 0.0;
+            } else {
+                player.mv.velocity.x = Player::WALK_SPEED;
+            },
+        }
+
+        player.mv.update_physics(duration);
+        Trans::None
+    }
+
+    fn fixed_update(&mut self, player: &mut Player) -> Trans {
+        player.data.running.cycle_frames();
+        Trans::None
+    }
+
+    fn draw(&mut self, ctx: &mut Context, player: &Player, camera: &Camera) {
+        draw_animation_frame(player, ctx, camera, &player.data.running, &player.direction).unwrap();
+    }
+}
+
+pub struct Jumping;
+
+impl State for Jumping {
+    fn on_start(&mut self, player: &mut Player) {
+        println!("Jumpint reset!");
+        player.data.jumping.reset();
+    }
+
+    fn on_resume(&mut self, player: &mut Player) {
+        self.on_start(player)
+    }
+
+    fn handle_events(&mut self, player: &mut Player) -> Trans {
+        player.direct();
+
+        if player.input.left ^ player.input.right {
+            match player.direction {
+                Direction::Left => if player.mv.pushes_left_wall {
+                    player.mv.velocity.x = 0.0;
+                } else {
+                    player.mv.velocity.x = -Player::WALK_SPEED;
+                },
+                Direction::Right => if player.mv.pushes_right_wall {
+                    player.mv.velocity.x = 0.0;
+                } else {
+                    player.mv.velocity.x = Player::WALK_SPEED;
+                },
+            };
+        };
+
+        let t = if player.input.attack {
+            Trans::Switch(Box::new(Attacking))
+        } else {
+            Trans::None
+        };
+
+        player.input.reset_actions();
+        t
+    }
+
+    fn update(&mut self, player: &mut Player, duration: &Duration) -> Trans {
+        let y_vel = Player::GRAVITY * seconds(&duration) + player.mv.velocity.y;
+        player.mv.velocity.y = y_vel.max(Player::MAX_FALLING_SPEED);
+        player.mv.update_physics(duration);
+
+        if player.mv.on_ground {
+            Trans::Pop
+        } else {
+            Trans::None
+        }
+    }
+
+    fn fixed_update(&mut self, player: &mut Player) -> Trans {
+        player.data.jumping.roll_frames();
+        Trans::None
+    }
+
+    fn draw(&mut self, ctx: &mut Context, player: &Player, camera: &Camera) {
+        draw_animation_frame(player, ctx, camera, &player.data.jumping, &player.direction).unwrap();
+    }
+}
+
+pub struct Sliding;
+
+impl State for Sliding {
+    fn on_start(&mut self, player: &mut Player) {
+        player.data.sliding.reset();
+    }
+
+    fn handle_events(&mut self, player: &mut Player) -> Trans {
+        let t = if player.input.jump {
+            Trans::Switch(Box::new(Jumping))
+        } else {
+            Trans::None
+        };
+
+        player.input.reset_actions();
+        t
+    }
+
+    fn update(&mut self, player: &mut Player, duration: &Duration) -> Trans {
+        player.mv.update_physics(duration);
+        Trans::None
+    }
+
+    fn fixed_update(&mut self, player: &mut Player) -> Trans {
+        if player.data.sliding.is_over() {
+            Trans::Pop
+        } else {
+            player.data.sliding.next_frame();
+            Trans::None
+        }
+    }
+
+    fn draw(&mut self, ctx: &mut Context, player: &Player, camera: &Camera) {
+        draw_animation_frame(player, ctx, camera, &player.data.sliding, &player.direction).unwrap();
     }
 }
 
@@ -215,15 +391,14 @@ impl State for Attacking {
     }
 
     fn handle_events(&mut self, player: &mut Player) -> Trans {
-        let dir = direction(&player.player_input, &player.direction);
-        player.direction = dir;
+        player.direct();
 
         let t = if self.can_cancel(player) {
-            if player.player_input.jump {
+            if player.input.jump {
                 Trans::Switch(Box::new(Jumping))
-            } else if player.player_input.slide {
+            } else if player.input.slide {
                 Trans::Switch(Box::new(Sliding))
-            } else if player.player_input.attack {
+            } else if player.input.attack {
                 Trans::Switch(Box::new(Attacking))
             } else {
                 Trans::None
@@ -232,7 +407,7 @@ impl State for Attacking {
             Trans::None
         };
 
-        player.player_input.reset_actions();
+        player.input.reset_actions();
         t
     }
 
@@ -245,63 +420,8 @@ impl State for Attacking {
         }
     }
 
-    fn draw(&mut self, ctx: &mut Context, player: &Player, camera: &Camera) {
-        draw_animation_frame(
-            player,
-            ctx,
-            &camera,
-            &player.data.attacking,
-            &player.direction,
-        );
-    }
-}
-
-pub struct Running;
-
-impl State for Running {
-    fn on_start(&mut self, player: &mut Player) {
-        player.data.running.reset();
-        let x = match player.direction {
-            Direction::Left => -30.0,
-            Direction::Right => 30.0,
-        };
-        let velo = Vector2::new(x, 0.0);
-        player.velocity = velo;
-    }
-    fn on_resume(&mut self, player: &mut Player) {
-        player.data.running.reset();
-    }
-    fn on_pause(&mut self, player: &mut Player) {
-        player.velocity = Vector2::new(0.0, 0.0);
-    }
-    fn on_stop(&mut self, player: &mut Player) {
-        self.on_pause(player);
-    }
-
-    fn handle_events(&mut self, player: &mut Player) -> Trans {
-        let dir = direction(&player.player_input, &player.direction);
-        player.direction = dir;
-
-        if !player.player_input.right && !player.player_input.left {
-            return Trans::Switch(Box::new(Idle));
-        };
-
-        let t = if player.player_input.jump {
-            Trans::Push(Box::new(Jumping))
-        } else if player.player_input.slide {
-            Trans::Push(Box::new(Sliding))
-        } else if player.player_input.attack {
-            Trans::Push(Box::new(Attacking))
-        } else {
-            Trans::None
-        };
-
-        player.player_input.reset_actions();
-        t
-    }
-
-    fn fixed_update(&mut self, player: &mut Player) -> Trans {
-        player.data.running.cycle_frames();
+    fn update(&mut self, player: &mut Player, duration: &Duration) -> Trans {
+        player.mv.update_physics(duration);
         Trans::None
     }
 
@@ -309,88 +429,9 @@ impl State for Running {
         draw_animation_frame(
             player,
             ctx,
-            camera,
-            &player.data.running,
+            &camera,
+            &player.data.attacking,
             &player.direction,
-        );
-    }
-}
-
-pub struct Jumping;
-
-impl State for Jumping {
-    fn on_start(&mut self, player: &mut Player) {
-        player.data.jumping.reset();
-    }
-
-    fn handle_events(&mut self, player: &mut Player) -> Trans {
-        let dir = direction(&player.player_input, &player.direction);
-        player.direction = dir;
-
-        let t = if player.player_input.attack {
-            Trans::Switch(Box::new(Attacking))
-        } else {
-            Trans::None
-        };
-
-        player.player_input.reset_actions();
-        t
-    }
-
-    fn fixed_update(&mut self, player: &mut Player) -> Trans {
-        if player.data.jumping.is_over() {
-            Trans::Pop
-        } else {
-            player.data.jumping.next_frame();
-            Trans::None
-        }
-    }
-
-    fn draw(&mut self, ctx: &mut Context, player: &Player, camera: &Camera) {
-        draw_animation_frame(
-            player,
-            ctx,
-            camera,
-            &player.data.jumping,
-            &player.direction,
-        );
-    }
-}
-
-pub struct Sliding;
-
-impl State for Sliding {
-    fn on_start(&mut self, player: &mut Player) {
-        player.data.sliding.reset();
-    }
-
-    fn handle_events(&mut self, player: &mut Player) -> Trans {
-        let t = if player.player_input.jump {
-            Trans::Switch(Box::new(Jumping))
-        } else {
-            Trans::None
-        };
-
-        player.player_input.reset_actions();
-        t
-    }
-
-    fn fixed_update(&mut self, player: &mut Player) -> Trans {
-        if player.data.sliding.is_over() {
-            Trans::Pop
-        } else {
-            player.data.sliding.next_frame();
-            Trans::None
-        }
-    }
-
-    fn draw(&mut self, ctx: &mut Context, player: &Player, camera: &Camera) {
-        draw_animation_frame(
-            player,
-            ctx,
-            camera,
-            &player.data.sliding,
-            &player.direction,
-        );
+        ).unwrap();
     }
 }

@@ -2,7 +2,6 @@
 use marker::*;
 use ggez::{GameResult, Context, GameError};
 use ggez::graphics::Image;
-use marker;
 use serde_json;
 use std::rc::Rc;
 
@@ -17,7 +16,7 @@ impl Loader {
             ctx.filesystem.open(format!("{}-marked.json", name))
         })?;
 
-        let data: Vec<SpriteData> = serde_json::from_reader(data_file).map_err(|e| {
+        let data: Vec<SpriteData> = serde_json::from_reader(data_file).map_err(|_| {
             GameError::ResourceLoadError(format!("Data not found: {}", name))
         })?;
         let image = Image::new(ctx, format!("{}.png", name))?;

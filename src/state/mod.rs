@@ -1,5 +1,4 @@
 use ggez::Context;
-use ggez::graphics::Point;
 
 use super::player::*;
 use super::camera::*;
@@ -7,6 +6,7 @@ use super::camera::*;
 use std::fmt::{Debug, Formatter};
 use std::result::Result;
 use std::fmt::Error;
+use std::time::Duration;
 
 #[derive(Debug)]
 pub enum Trans {
@@ -19,34 +19,34 @@ pub enum Trans {
 
 impl Debug for State {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        f.write_str("state!");
+        f.write_str("state!")?;
         Ok(())
     }
 }
 
 pub trait State {
-    fn on_start(&mut self, player: &mut Player) {}
-    fn on_stop(&mut self, player: &mut Player) {}
-    fn on_pause(&mut self, player: &mut Player) {}
-    fn on_resume(&mut self, player: &mut Player) {}
+    fn on_start(&mut self, _player: &mut Player) {}
+    fn on_stop(&mut self, _player: &mut Player) {}
+    fn on_pause(&mut self, _player: &mut Player) {}
+    fn on_resume(&mut self, _player: &mut Player) {}
 
     /// Executed on every frame before updating, for use in reacting to events.
-    fn handle_events(&mut self, player: &mut Player) -> Trans {
+    fn handle_events(&mut self, _player: &mut Player) -> Trans {
         Trans::None
     }
 
     /// Executed repeatedly at stable, predictable intervals (1/60th of a second
     /// by default).
-    fn fixed_update(&mut self, player: &mut Player) -> Trans {
+    fn fixed_update(&mut self, _player: &mut Player) -> Trans {
         Trans::None
     }
 
     /// Executed on every frame immediately, as fast as the engine will allow.
-    fn update(&mut self, player: &mut Player) -> Trans {
+    fn update(&mut self, _player: &mut Player, _duration: &Duration) -> Trans {
         Trans::None
     }
 
-    fn draw(&mut self, ctx: &mut Context, player: &Player, camera: &Camera) {}
+    fn draw(&mut self, _ctx: &mut Context, _player: &Player, _camera: &Camera) {}
 }
 
 #[derive(Debug)]
@@ -106,10 +106,10 @@ impl StateMachine {
         }
     }
 
-    pub fn update(&mut self, player: &mut Player) {
+    pub fn update(&mut self, player: &mut Player, duration: &Duration) {
         if self.running {
             let trans = match self.state_stack.last_mut() {
-                Some(state) => state.update(player),
+                Some(state) => state.update(player, duration),
                 None => Trans::None,
             };
 

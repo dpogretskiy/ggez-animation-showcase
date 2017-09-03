@@ -1,5 +1,4 @@
-use std;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use marker::*;
 use marker::geom::Rect;
 use super::MarkedTiles;
@@ -36,30 +35,26 @@ impl LevelAssetIndex {
 
         for gd in ground.data.iter() {
             match &gd.markers {
-                &SpriteType::Ground {
-                    square: ref sqr,
-                } => {
-                    for s in sqr.iter() {
-                        let mut p = true;
-                        {
-                            let entry = ground_sqr.get_mut(s);
-                            if let Some(e) = entry {
-                                e.push(gd.on_screen_frame.clone());
-                                p = false;
-                            };
-                        }
-                        if p {
-                            ground_sqr.insert(s.clone(), vec![gd.on_screen_frame.clone()]);
+                &SpriteType::Ground { square: ref sqr } => for s in sqr.iter() {
+                    let mut p = true;
+                    {
+                        let entry = ground_sqr.get_mut(s);
+                        if let Some(e) = entry {
+                            e.push(gd.on_screen_frame.clone());
+                            p = false;
                         };
                     }
-                }
-                &SpriteType::Platform { horizontal: ref hor } => {
-                    for h in hor.iter() {
-                        platform_hor.entry(h.clone()).or_insert({
-                            vec![gd.on_screen_frame.clone()]
-                        });
-                    }
-                }
+                    if p {
+                        ground_sqr.insert(s.clone(), vec![gd.on_screen_frame.clone()]);
+                    };
+                },
+                &SpriteType::Platform {
+                    horizontal: ref hor,
+                } => for h in hor.iter() {
+                    platform_hor
+                        .entry(h.clone())
+                        .or_insert({ vec![gd.on_screen_frame.clone()] });
+                },
                 &SpriteType::Object => ground_obj.push(gd.on_screen_frame.clone()),
             }
         }
@@ -72,17 +67,16 @@ impl LevelAssetIndex {
         }
 
         let index = LevelAssetIndex {
-            ground: GroundIndex {
-                square: ground_sqr,
-            },
+            ground: GroundIndex { square: ground_sqr },
             objects: ObjectIndex {
                 ground: ground_obj,
                 surface: surface_obj,
             },
-            platforms: PlatformIndex { horizontal: platform_hor },
+            platforms: PlatformIndex {
+                horizontal: platform_hor,
+            },
         };
 
-        println!("{:?}", index);
         index
     }
 

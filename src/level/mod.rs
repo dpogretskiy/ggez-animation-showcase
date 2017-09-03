@@ -214,7 +214,10 @@ impl RenderableLevel {
                             level.assets.ground.image.clone(),
                             DrawParam {
                                 src: graphics::Rect::from(rect),
-                                dest: graphics::Point::new((h * 128) as f32, pixel_height as f32 - (v * 128) as f32),
+                                dest: graphics::Point::new(
+                                    (h * 128) as f32,
+                                    pixel_height as f32 - (v * 128) as f32,
+                                ),
                                 scale: graphics::Point::new(1.0, 1.0),
                                 ..Default::default()
                             },
@@ -224,6 +227,9 @@ impl RenderableLevel {
                 }
             }
         };
-        RenderableLevel { sprites, level }
+        RenderableLevel {
+            sprites: sprites,
+            level,
+        }
     }
 }

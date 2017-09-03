@@ -1,9 +1,9 @@
 extern crate ggez;
 extern crate marker;
-extern crate serde_json;
-extern crate rand;
-
 extern crate nalgebra as na;
+extern crate rand;
+extern crate serde_json;
+
 pub type Point2 = na::Point2<f64>;
 pub type Vector2 = na::Vector2<f64>;
 
@@ -12,6 +12,7 @@ mod state;
 mod player;
 mod level;
 mod camera;
+mod physics;
 
 use ggez::conf;
 use ggez::event;
@@ -20,29 +21,30 @@ use ggez::graphics;
 use ggez::{Context, GameResult};
 use ggez::event::{Keycode, Mod};
 
-
+use std::rc::Rc;
 use std::time::Duration;
 
 use state::StateMachine;
-use player::Player;
+use player::*;
 use camera::*;
 
 pub struct Game {
     pub player: Player,
     pub player_sm: StateMachine,
-    pub level: RenderableLevel,
+    pub level: Rc<RenderableLevel>,
     pub camera: Camera,
+    pub fixed_update: Duration,
 }
-
 
 impl Game {
     pub fn new(ctx: &mut Context) -> GameResult<Game> {
-        let (p, sm) = Player::new(ctx)?;
-        let level = {
+        let level = Rc::new({
             let l = Level::load(ctx, LevelType::Graveyard).unwrap();
             let rl = RenderableLevel::build(l);
             rl
-        };
+        });
+
+        let (p, sm) = Player::new(ctx)?;
 
         let (w, h) = (ctx.conf.window_width, ctx.conf.window_height);
 
@@ -50,21 +52,31 @@ impl Game {
             player: p,
             player_sm: sm,
             level,
-            camera: Camera::new(w, h, 1600.0, 1000.0)
+            camera: Camera::new(w, h, 1600.0, 1000.0),
+            fixed_update: Duration::from_secs(0),
         })
     }
 }
 
 
 impl event::EventHandler for Game {
-    fn update(&mut self, _ctx: &mut Context, _dt: Duration) -> GameResult<()> {
+    fn update(&mut self, ctx: &mut Context, dt: Duration) -> GameResult<()> {
+        // PROFILER.lock().unwrap().start("./my-prof.profile").expect("Couldn't start");
+
         self.player_sm.handle_events(&mut self.player);
-        self.player_sm.update(&mut self.player);
 
-        //ayy
-        self.player.coordinates += self.player.velocity;
+        if timer::check_update_time(ctx, 30) {
+            self.player_sm.update(&mut self.player, &self.fixed_update);
+            self.player_sm.fixed_update(&mut self.player);
+            self.fixed_update = Duration::from_secs(0);
+        } else {
+            self.fixed_update += dt;
+        };
 
-        self.camera.move_to(self.player.coordinates);
+
+        self.camera.move_to(self.player.mv.position);
+        // PROFILER.lock().unwrap().stop().expect("Could't stop!");
+
         Ok(())
     }
 
@@ -73,16 +85,20 @@ impl event::EventHandler for Game {
 
         let camera = &self.camera;
 
+        self.level.level.assets.background.draw_camera(
+            camera,
+            ctx,
+            graphics::Point::new(camera.location().x as f32, camera.location().y as f32),
+            0.0,
+        )?;
+
         self.player_sm.draw(ctx, camera, &self.player);
 
-        for &(ref img, ref dp, ref attr) in self.level.sprites.iter() {
+        for &(ref img, ref dp, _) in self.level.sprites.iter() {
             (&**img).draw_ex_camera(camera, ctx, dp.clone())?;
         }
 
         graphics::present(ctx);
-
-        timer::sleep_until_next_frame(ctx, 30);
-        self.player_sm.fixed_update(&mut self.player);
 
         Ok(())
     }
@@ -90,13 +106,13 @@ impl event::EventHandler for Game {
     fn key_down_event(&mut self, keycode: Keycode, _keymod: Mod, repeat: bool) {
         if !repeat {
             match keycode {
-                Keycode::Left => self.player.player_input.left = true,
-                Keycode::Right => self.player.player_input.right = true,
-                Keycode::Up => self.player.player_input.up = true,
-                Keycode::Down => self.player.player_input.down = true,
-                Keycode::LCtrl => self.player.player_input.slide = true,
-                Keycode::Space => self.player.player_input.jump = true,
-                Keycode::LShift => self.player.player_input.attack = true,
+                Keycode::Left => self.player.input.left = true,
+                Keycode::Right => self.player.input.right = true,
+                Keycode::Up => self.player.input.up = true,
+                Keycode::Down => self.player.input.down = true,
+                Keycode::LCtrl => self.player.input.slide = true,
+                Keycode::Space => self.player.input.jump = true,
+                Keycode::LShift => self.player.input.attack = true,
                 _ => (),
             }
         }
@@ -106,10 +122,10 @@ impl event::EventHandler for Game {
         if !repeat {
             //wat?
             match keycode {
-                Keycode::Left => self.player.player_input.left = false,
-                Keycode::Right => self.player.player_input.right = false,
-                Keycode::Up => self.player.player_input.up = false,
-                Keycode::Down => self.player.player_input.down = false,
+                Keycode::Left => self.player.input.left = false,
+                Keycode::Right => self.player.input.right = false,
+                Keycode::Up => self.player.input.up = false,
+                Keycode::Down => self.player.input.down = false,
                 _ => (),
             }
         }
