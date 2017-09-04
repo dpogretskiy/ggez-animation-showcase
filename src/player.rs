@@ -5,11 +5,13 @@ use ggez::{Context, GameResult};
 use std::boxed::Box;
 use std::time::Duration;
 
-use ggez::graphics::{DrawParam, Point};
+use ggez::graphics::*;
+use ggez::graphics;
 
 use super::camera::*;
 use super::physics::MovingObject;
 use super::physics::seconds;
+use super::level::Terrain;
 use sprite::Loader;
 use sprite::animation::Animated;
 
@@ -42,7 +44,7 @@ impl Player {
                 attack: false,
             },
             direction: Direction::Right,
-            mv: MovingObject::new(Vector2::new(300.0, 300.0), Vector2::new(290.0, 500.0)),
+            mv: MovingObject::new(Vector2::new(300.0, 800.0), Vector2::new(290.0 * scale, 500.0 * scale)),
         };
 
         let mut sm = StateMachine::new(Idle);
@@ -61,10 +63,10 @@ impl Player {
         };
     }
 
-    const GRAVITY: f64 = -1500.0;
+    const GRAVITY: f64 = -2000.0;
     const MAX_FALLING_SPEED: f64 = -4000.0;
-    const JUMP_SPEED: f64 = 2000.0;
-    const WALK_SPEED: f64 = 400.0;
+    const JUMP_SPEED: f64 = 1000.0;
+    const WALK_SPEED: f64 = 700.0;
 }
 
 fn draw_animation_frame(
@@ -93,6 +95,17 @@ fn draw_animation_frame(
             ..Default::default()
         },
     )?;
+
+    if super::debug {
+        let mut rect = ss.current_frame_rect();
+        let dd = camera.calculate_dest_point(player.mv.position.clone());
+        rect.x = dd.x;
+        rect.y = dd.y; 
+        rect.w = player.mv.aabb.half_size.x as f32 * 2.0;
+        rect.h = player.mv.aabb.half_size.y as f32 * 2.0;
+        graphics::set_color(ctx, WHITE)?;
+        graphics::rectangle(ctx, DrawMode::Line, rect)?;
+    };
 
     Ok(())
 }
@@ -198,8 +211,9 @@ impl State for Idle {
         trans
     }
 
-    fn update(&mut self, player: &mut Player, duration: &Duration) -> Trans {
-        player.mv.update_physics(duration);
+    fn update(&mut self, player: &mut Player, duration: &Duration, terrain: &Terrain) -> Trans {
+        println!("Update idle physics?");
+        player.mv.update_physics(duration, terrain);
         Trans::None
     }
 
@@ -250,21 +264,25 @@ impl State for Running {
         t
     }
 
-    fn update(&mut self, player: &mut Player, duration: &Duration) -> Trans {
+    fn update(&mut self, player: &mut Player, duration: &Duration, terrain: &Terrain) -> Trans {
         match player.direction {
-            Direction::Left => if player.mv.pushes_left_wall {
-                player.mv.velocity.x = 0.0;
-            } else {
-                player.mv.velocity.x = -Player::WALK_SPEED;
-            },
-            Direction::Right => if player.mv.pushes_right_wall {
-                player.mv.velocity.x = 0.0;
-            } else {
-                player.mv.velocity.x = Player::WALK_SPEED;
-            },
+            Direction::Left => {
+                if player.mv.pushes_left_wall {
+                    player.mv.velocity.x = 0.0;
+                } else {
+                    player.mv.velocity.x = -Player::WALK_SPEED;
+                }
+            }
+            Direction::Right => {
+                if player.mv.pushes_right_wall {
+                    player.mv.velocity.x = 0.0;
+                } else {
+                    player.mv.velocity.x = Player::WALK_SPEED;
+                }
+            }
         }
 
-        player.mv.update_physics(duration);
+        player.mv.update_physics(duration, terrain);
         Trans::None
     }
 
@@ -295,17 +313,23 @@ impl State for Jumping {
 
         if player.input.left ^ player.input.right {
             match player.direction {
-                Direction::Left => if player.mv.pushes_left_wall {
-                    player.mv.velocity.x = 0.0;
-                } else {
-                    player.mv.velocity.x = -Player::WALK_SPEED;
-                },
-                Direction::Right => if player.mv.pushes_right_wall {
-                    player.mv.velocity.x = 0.0;
-                } else {
-                    player.mv.velocity.x = Player::WALK_SPEED;
-                },
+                Direction::Left => {
+                    if player.mv.pushes_left_wall {
+                        player.mv.velocity.x = 0.0;
+                    } else {
+                        player.mv.velocity.x = -Player::WALK_SPEED;
+                    }
+                }
+                Direction::Right => {
+                    if player.mv.pushes_right_wall {
+                        player.mv.velocity.x = 0.0;
+                    } else {
+                        player.mv.velocity.x = Player::WALK_SPEED;
+                    }
+                }
             };
+        } else {
+            player.mv.velocity.x = 0.0;
         };
 
         let t = if player.input.attack {
@@ -318,10 +342,10 @@ impl State for Jumping {
         t
     }
 
-    fn update(&mut self, player: &mut Player, duration: &Duration) -> Trans {
+    fn update(&mut self, player: &mut Player, duration: &Duration, terrain: &Terrain) -> Trans {
         let y_vel = Player::GRAVITY * seconds(&duration) + player.mv.velocity.y;
         player.mv.velocity.y = y_vel.max(Player::MAX_FALLING_SPEED);
-        player.mv.update_physics(duration);
+        player.mv.update_physics(duration, terrain);
 
         if player.mv.on_ground {
             Trans::Pop
@@ -358,8 +382,8 @@ impl State for Sliding {
         t
     }
 
-    fn update(&mut self, player: &mut Player, duration: &Duration) -> Trans {
-        player.mv.update_physics(duration);
+    fn update(&mut self, player: &mut Player, duration: &Duration, terrain: &Terrain) -> Trans {
+        player.mv.update_physics(duration, terrain);
         Trans::None
     }
 
@@ -420,8 +444,8 @@ impl State for Attacking {
         }
     }
 
-    fn update(&mut self, player: &mut Player, duration: &Duration) -> Trans {
-        player.mv.update_physics(duration);
+    fn update(&mut self, player: &mut Player, duration: &Duration, terrain: &Terrain) -> Trans {
+        player.mv.update_physics(duration, terrain);
         Trans::None
     }
 

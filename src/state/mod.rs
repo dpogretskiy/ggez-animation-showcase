@@ -2,6 +2,7 @@ use ggez::Context;
 
 use super::player::*;
 use super::camera::*;
+use super::level::Terrain;
 
 use std::fmt::{Debug, Formatter};
 use std::result::Result;
@@ -42,7 +43,7 @@ pub trait State {
     }
 
     /// Executed on every frame immediately, as fast as the engine will allow.
-    fn update(&mut self, _player: &mut Player, _duration: &Duration) -> Trans {
+    fn update(&mut self, _player: &mut Player, _duration: &Duration, _terrain: &Terrain) -> Trans {
         Trans::None
     }
 
@@ -106,10 +107,10 @@ impl StateMachine {
         }
     }
 
-    pub fn update(&mut self, player: &mut Player, duration: &Duration) {
+    pub fn update(&mut self, player: &mut Player, duration: &Duration, terrain: &Terrain) {
         if self.running {
             let trans = match self.state_stack.last_mut() {
-                Some(state) => state.update(player, duration),
+                Some(state) => state.update(player, duration, terrain),
                 None => Trans::None,
             };
 

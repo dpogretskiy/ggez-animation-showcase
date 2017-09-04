@@ -13,6 +13,8 @@ pub mod index;
 use ggez::graphics::DrawParam;
 use ggez::graphics;
 
+use na::Vector2;
+
 use self::index::LevelAssetIndex;
 
 pub enum LevelType {
@@ -80,24 +82,126 @@ impl Level {
     }
 }
 
-pub struct TileAttributes {
-    ground: bool,
+pub struct Terrain {
+    pub terrain: Vec<Vec<TileType>>,
+    pub position: Vector2<f64>,
+    pub width: usize,
+    pub height: usize,
+    pub tile_size: f64,
+}
+
+impl Terrain {
+    pub fn get_tile_at_point(&self, point: Vector2<f64>) -> Vector2<isize> {
+        Vector2::new(
+            ((point.x - self.position.x as f64 + self.tile_size / 2.0) / self.tile_size) as isize,
+            ((point.y - self.position.y as f64 + self.tile_size / 2.0) / self.tile_size) as isize,
+        )
+    }
+
+    pub fn get_tile_y_at_point(&self, y: f64) -> isize {
+        ((y - self.position.y + self.tile_size / 2.0) / self.tile_size) as isize
+    }
+
+    pub fn get_tile_x_at_point(&self, x: f64) -> isize {
+        ((x - self.position.x + self.tile_size / 2.0) / self.tile_size) as isize
+    }
+
+    pub fn get_map_tile_position(&self, x: isize, y: isize) -> Vector2<f64> {
+        Vector2::new(
+            x as f64 * self.tile_size + self.position.x,
+            y as f64 * self.tile_size + self.position.y,
+        )
+    }
+
+    pub fn get_map_tile_position_vec(&self, coords: Vector2<isize>) -> Vector2<f64> {
+        self.get_map_tile_position(coords.x, coords.y)
+    }
+
+    #[inline]
+    fn in_bounds(&self, x: isize, y: isize) -> Option<(usize, usize)> {
+        if x < 0 || x as usize >= self.width || y < 0 || y as usize >= self.height {
+            None
+        } else {
+            Some((x as usize, y as usize))
+        }
+    }
+
+    pub fn get_tile(&self, x: isize, y: isize) -> TileType {
+        if let Some((x, y)) = self.in_bounds(x, y) {
+            self.terrain[y][x]
+        } else {
+            TileType::Block
+        }
+    }
+
+    pub fn is_obstacle(&self, x: isize, y: isize) -> bool {
+        self.get_tile(x, y) == TileType::Block
+    }
+
+    pub fn is_ground(&self, x: isize, y: isize) -> bool {
+        if let Some((x, y)) = self.in_bounds(x, y) {
+            let t = self.terrain[y][x];
+            t == TileType::Block || t == TileType::OneWay
+        } else {
+            false
+        }
+    }
+
+    pub fn is_one_way_platform(&self, x: isize, y: isize) -> bool {
+        if let Some((x, y)) = self.in_bounds(x, y) {
+            self.terrain[y][x] == TileType::OneWay
+        } else {
+            false
+        }
+    }
+
+    pub fn is_empty(&self, x: isize, y: isize) -> bool {
+        if let Some((x, y)) = self.in_bounds(x, y) {
+            self.terrain[y][x] == TileType::Empty
+        } else {
+            false
+        }
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum TileType {
+    Empty,
+    Block,
+    OneWay,
 }
 
 pub struct RenderableLevel {
     pub level: Level,
-    pub sprites: Vec<(Rc<Image>, DrawParam, TileAttributes)>,
+    pub sprites: Vec<(Rc<Image>, DrawParam)>,
+    pub terrain: Terrain,
 }
 
 impl RenderableLevel {
     pub fn build(level: Level) -> RenderableLevel {
-        let mut sprites: Vec<(Rc<Image>, DrawParam, TileAttributes)> = vec![];
+        let mut sprites: Vec<(Rc<Image>, DrawParam)> = vec![];
+        let mut terrain_vec: Vec<Vec<TileType>> = vec![];
+
+        let height = level.terrain.len();
+        let pixel_height = height * 128;
+        let width = level.terrain[0].len();
+
+        for v_vec in level.terrain.iter() {
+            let mut h_vec = vec![];
+
+            for tile in v_vec.iter() {
+                match tile {
+                    &1 => h_vec.push(TileType::Block),
+                    _ => h_vec.push(TileType::Empty),
+                }
+            }
+
+
+            h_vec.shrink_to_fit();
+            terrain_vec.push(h_vec);
+        }
 
         {
-            let height = level.terrain.len();
-            let pixel_height = height * 128;
-            let width = level.terrain[0].len();
-
             let is_left_wall = |h| h == 0;
             let is_right_wall = |h| h == width - 1;
             let is_floor = |v| v == height - 1;
@@ -127,45 +231,51 @@ impl RenderableLevel {
                     );
 
                     match mat {
-                        ((l, 1, r), (1, 1, 1), (_, 1, _)) => if l != 0 && r != 0 {
-                            level.index.find_ground(Square::MM)
-                        } else if r != 0 {
-                            level.index.find_ground(Square::IBR)
-                        } else {
-                            level.index.find_ground(Square::IBL)
-                        },
-                        ((l, 0, r), (1, 1, 1), (_, 1, _)) => if l != 0 {
-                            level.index.find_ground(Square::ILT)
-                        } else if r != 0 {
-                            level.index.find_ground(Square::IRT)
-                        } else {
-                            level.index.find_ground(Square::MT)
-                        },
-                        ((_, a, _), (l, 1, r), (_, b, _)) => if a == 0 {
-                            if l == 0 {
-                                level.index.find_ground(Square::LT)
-                            } else if r == 0 {
-                                level.index.find_ground(Square::RT)
+                        ((l, 1, r), (1, 1, 1), (_, 1, _)) => {
+                            if l != 0 && r != 0 {
+                                level.index.find_ground(Square::MM)
+                            } else if r != 0 {
+                                level.index.find_ground(Square::IBR)
+                            } else {
+                                level.index.find_ground(Square::IBL)
+                            }
+                        }
+                        ((l, 0, r), (1, 1, 1), (_, 1, _)) => {
+                            if l != 0 {
+                                level.index.find_ground(Square::ILT)
+                            } else if r != 0 {
+                                level.index.find_ground(Square::IRT)
                             } else {
                                 level.index.find_ground(Square::MT)
                             }
-                        } else if b == 0 {
-                            if l == 0 {
-                                level.index.find_ground(Square::LB)
-                            } else if r == 0 {
-                                level.index.find_ground(Square::RB)
+                        }
+                        ((_, a, _), (l, 1, r), (_, b, _)) => {
+                            if a == 0 {
+                                if l == 0 {
+                                    level.index.find_ground(Square::LT)
+                                } else if r == 0 {
+                                    level.index.find_ground(Square::RT)
+                                } else {
+                                    level.index.find_ground(Square::MT)
+                                }
+                            } else if b == 0 {
+                                if l == 0 {
+                                    level.index.find_ground(Square::LB)
+                                } else if r == 0 {
+                                    level.index.find_ground(Square::RB)
+                                } else {
+                                    level.index.find_ground(Square::MB)
+                                }
                             } else {
-                                level.index.find_ground(Square::MB)
+                                if l == 0 {
+                                    level.index.find_ground(Square::LM)
+                                } else if r == 0 {
+                                    level.index.find_ground(Square::RM)
+                                } else {
+                                    level.index.find_ground(Square::MM)
+                                }
                             }
-                        } else {
-                            if l == 0 {
-                                level.index.find_ground(Square::LM)
-                            } else if r == 0 {
-                                level.index.find_ground(Square::RM)
-                            } else {
-                                level.index.find_ground(Square::MM)
-                            }
-                        },
+                        }
                         _ => None,
                     }
                 }
@@ -216,20 +326,28 @@ impl RenderableLevel {
                                 src: graphics::Rect::from(rect),
                                 dest: graphics::Point::new(
                                     (h * 128) as f32,
-                                    pixel_height as f32 - (v * 128) as f32,
+                                    (pixel_height - v * 128) as f32,
                                 ),
                                 scale: graphics::Point::new(1.0, 1.0),
                                 ..Default::default()
                             },
-                            TileAttributes { ground: true },
                         ));
                     };
                 }
             }
         };
+
+        terrain_vec.reverse();
         RenderableLevel {
             sprites: sprites,
             level,
+            terrain: Terrain {
+                terrain: terrain_vec,
+                position: Vector2::new(0.0, 128.0),
+                width: width,
+                height: height,
+                tile_size: 128.0,
+            },
         }
     }
 }

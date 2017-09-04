@@ -3,6 +3,9 @@ extern crate marker;
 extern crate nalgebra as na;
 extern crate rand;
 extern crate serde_json;
+extern crate cpuprofiler;
+
+use cpuprofiler::PROFILER;
 
 pub type Point2 = na::Point2<f64>;
 pub type Vector2 = na::Vector2<f64>;
@@ -27,6 +30,9 @@ use std::time::Duration;
 use state::StateMachine;
 use player::*;
 use camera::*;
+use level::*;
+
+const debug: bool = true;
 
 pub struct Game {
     pub player: Player,
@@ -65,14 +71,17 @@ impl event::EventHandler for Game {
 
         self.player_sm.handle_events(&mut self.player);
 
-        if timer::check_update_time(ctx, 30) {
-            self.player_sm.update(&mut self.player, &self.fixed_update);
-            self.player_sm.fixed_update(&mut self.player);
-            self.fixed_update = Duration::from_secs(0);
-        } else {
-            self.fixed_update += dt;
-        };
-
+        // if timer::check_update_time(ctx, 30) {
+        self.player_sm.update(
+            &mut self.player,
+            &dt,
+            &self.level.terrain,
+        );
+        self.player_sm.fixed_update(&mut self.player);
+        // self.fixed_update = Duration::from_secs(0);
+        // } else {
+        //     self.fixed_update += dt;
+        // };
 
         self.camera.move_to(self.player.mv.position);
         // PROFILER.lock().unwrap().stop().expect("Could't stop!");
@@ -88,13 +97,37 @@ impl event::EventHandler for Game {
         self.level.level.assets.background.draw_camera(
             camera,
             ctx,
-            graphics::Point::new(camera.location().x as f32, camera.location().y as f32),
+            graphics::Point::new(
+                camera.location().x as f32,
+                camera.location().y as f32,
+            ),
             0.0,
         )?;
 
         self.player_sm.draw(ctx, camera, &self.player);
 
-        for &(ref img, ref dp, _) in self.level.sprites.iter() {
+        if debug {
+            let (ref img, ref dp) = self.level.sprites[0];
+            let mut dp = dp.clone();
+            let t = &self.level.terrain;
+
+            for y in 0..t.height {
+                for x in 0..t.width {
+                    if t.get_tile(x as isize, y as isize) == TileType::Block {
+                        let pos = t.get_map_tile_position(x as isize, y as isize);
+                        let dx = pos.x as f32;
+                        let dy = pos.y as f32;
+
+                        dp.dest.x = dx;
+                        dp.dest.y = dy;
+
+                        (&**img).draw_ex_camera(camera, ctx, dp.clone());
+                    }
+                }
+            }
+        };
+
+        for &(ref img, ref dp) in self.level.sprites.iter() {
             (&**img).draw_ex_camera(camera, ctx, dp.clone())?;
         }
 
