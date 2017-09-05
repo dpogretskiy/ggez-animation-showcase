@@ -86,6 +86,10 @@ impl MovingObject {
         self.position += self.velocity * seconds(time);
 
         let mut ground_y = 0.0;
+        let mut ceiling_y = 0.0;
+        let mut right_wall_x = 0.0;
+        let mut left_wall_x = 0.0;
+
         self.on_platform = false;
 
         if self.velocity.y <= 0.0 && self.has_ground(&mut ground_y, terrain) {
@@ -94,6 +98,34 @@ impl MovingObject {
             self.on_ground = true;
         } else {
             self.on_ground = false;
+        }
+
+        if self.velocity.y >= 0.0 && self.has_ceiling(&mut ceiling_y, terrain) {
+            self.position.y = ceiling_y - self.aabb.half_size.y - self.aabb_offset.y - 1.0;
+            self.velocity.y = 0.0;
+            self.at_ceiling = true;
+        } else {
+            self.at_ceiling = false;
+        }
+
+        if self.velocity.x <= 0.0 && self.collides_with_left_wall(&mut left_wall_x, terrain) {
+            if self.old_position.x - self.aabb.half_size.x + self.aabb_offset.x >= left_wall_x {
+                self.position.x = left_wall_x + self.aabb.half_size.x - self.aabb_offset.x;
+                self.pushes_left_wall = true;
+            };
+            self.velocity.x = self.velocity.x.max(0.0);
+        } else {
+            self.pushes_left_wall = false;
+        }
+
+        if self.velocity.x >= 0.0 && self.collides_with_right_wall(&mut right_wall_x, terrain) {
+            if self.old_position.x + self.aabb.half_size.x + self.aabb_offset.x <= right_wall_x {
+                self.position.x = right_wall_x - self.aabb.half_size.x - self.aabb_offset.x;
+                self.pushes_right_wall = true;
+            }
+            self.velocity.x = self.velocity.x.min(0.0);
+        } else {
+            self.pushes_right_wall = false;
         }
 
         self.aabb.center = self.position + self.aabb_offset;
@@ -145,7 +177,137 @@ impl MovingObject {
         false
     }
 
-    // pub fn has_ceiling()
+    pub fn has_ceiling(&self, ceiling_y: &mut f64, terrain: &Terrain) -> bool {
+        let center = self.position + self.aabb_offset;
+        let old_center = self.old_position + self.aabb_offset;
+
+        *ceiling_y = 0.0;
+
+        let old_top_right = old_center + self.aabb.half_size + Vector2::new(-1.0, 1.0);
+        let new_top_right = center + self.aabb.half_size + Vector2::new(-1.0, 1.0);
+        let new_top_left = Vector2::new(
+            new_top_right.x - self.aabb.half_size.x * 2.0 + 2.0,
+            new_top_right.y,
+        );
+
+        let end_y = terrain.get_tile_y_at_point(new_top_right.y);
+        let beg_y = cmp::min(terrain.get_tile_y_at_point(old_top_right.y) + 1, end_y);
+        let dist = cmp::max((end_y - beg_y).abs(), 1);
+
+        let mut tile_index_x;
+
+        for tile_index_y in beg_y..end_y + 1 {
+            let top_right = lerp(
+                &new_top_left,
+                &old_top_right,
+                ((end_y - tile_index_y).abs() as f64 / dist as f64),
+            );
+            let top_left =
+                Vector2::new(top_right.x - self.aabb.half_size.x * 2.0 + 2.0, top_right.y);
+
+            let mut checked_tile = top_left.clone();
+
+            loop {
+                checked_tile.x = checked_tile.x.min(top_right.x);
+                tile_index_x = terrain.get_tile_x_at_point(checked_tile.x);
+
+                if terrain.is_obstacle(tile_index_x, tile_index_y) {
+                    *ceiling_y = tile_index_y as f64 * terrain.tile_size - terrain.tile_size / 2.0 +
+                        terrain.position.y;
+                    return true;
+                }
+
+                if checked_tile.x >= top_right.x {
+                    break;
+                }
+
+                checked_tile.x += terrain.tile_size;
+            }
+        }
+        false
+    }
+
+    pub fn collides_with_left_wall(&self, wall_x: &mut f64, terrain: &Terrain) -> bool {
+        let center = self.position + self.aabb_offset;
+        let old_center = self.old_position + self.aabb_offset;
+        *wall_x = 0.0;
+        let old_bottom_left = old_center - self.aabb.half_size - Vector2::new(1.0, 0.0);
+        let new_bottom_left = center - self.aabb.half_size - Vector2::new(1.0, 0.0);
+        let mut tile_index_y;
+        let end_x = terrain.get_tile_x_at_point(new_bottom_left.x);
+        let beg_x = cmp::max(terrain.get_tile_x_at_point(old_bottom_left.x) - 1, end_x);
+        let dist = cmp::max((end_x - beg_x).abs(), 1);
+        for tile_index_x in (end_x..beg_x + 1).rev() {
+            let bottom_left = lerp(
+                &new_bottom_left,
+                &old_bottom_left,
+                (end_x - tile_index_x).abs() as f64 / dist as f64,
+            );
+            let top_left = bottom_left + Vector2::new(0.0, self.aabb.half_size.y * 2.0);
+            let mut checked_tile = bottom_left;
+            loop {
+                checked_tile.y = checked_tile.y.min(top_left.y);
+                tile_index_y = terrain.get_tile_y_at_point(checked_tile.y);
+                if terrain.is_obstacle(tile_index_x, tile_index_y) {
+                    *wall_x = tile_index_x as f64 * terrain.tile_size + terrain.tile_size / 2.0 +
+                        terrain.position.x;
+                    return true;
+                }
+                if checked_tile.y >= top_left.y {
+                    break;
+                }
+                checked_tile.y += terrain.tile_size;
+            }
+        }
+        false
+    }
+
+    pub fn collides_with_right_wall(&self, wall_x: &mut f64, terrain: &Terrain) -> bool {
+        let center = self.position + self.aabb_offset;
+        let old_center = self.old_position + self.aabb_offset;
+
+        *wall_x = 0.0;
+
+        let old_bottom_right = old_center +
+            Vector2::new(self.aabb.half_size.x, -self.aabb.half_size.y) +
+            Vector2::new(1.0, 0.0);
+        let new_bottom_right = center +
+            Vector2::new(self.aabb.half_size.x, -self.aabb.half_size.y) +
+            Vector2::new(1.0, 0.0);
+
+        let end_x = terrain.get_tile_x_at_point(new_bottom_right.x);
+        let beg_x = cmp::min(terrain.get_tile_x_at_point(old_bottom_right.x) + 1, end_x);
+        let dist = cmp::max((end_x - beg_x).abs(), 1);
+
+        let mut tile_index_y;
+
+        for tile_index_x in beg_x..end_x + 1 {
+            let bottom_right = lerp(
+                &new_bottom_right,
+                &old_bottom_right,
+                (end_x - tile_index_x).abs() as f64 / dist as f64,
+            );
+            let top_right = bottom_right + Vector2::new(0.0, self.aabb.half_size.y * 2.0);
+
+            let mut checked_tile = bottom_right;
+            loop {
+                checked_tile.y = checked_tile.y.min(top_right.y);
+
+                tile_index_y = terrain.get_tile_y_at_point(checked_tile.y);
+
+                if terrain.is_obstacle(tile_index_x, tile_index_y) {
+                    *wall_x = tile_index_x as f64 * terrain.tile_size - terrain.tile_size / 2.0 +
+                        terrain.position.x;
+                    return true;
+                }
+                if checked_tile.y >= top_right.y {
+                    break;
+                }
+                checked_tile.y += terrain.tile_size;
+            }
+        }
+        false
+    }
 
     pub const PLATFORM_THRESHOLD: f64 = 2.0;
 }
