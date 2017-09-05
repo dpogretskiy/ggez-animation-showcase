@@ -57,19 +57,19 @@ impl Level {
         let terrain = vec![
             vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
             vec![1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            vec![1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            vec![1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-            vec![1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-            vec![1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-            vec![1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1],
-            vec![1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            vec![1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            vec![1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1],
-            vec![1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1],
-            vec![1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+            vec![1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
             vec![1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
             vec![1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            vec![1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            vec![1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            vec![1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            vec![1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1],
+            vec![1, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            vec![1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            vec![1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            vec![1, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1, 0, 0, 0, 1],
+            vec![1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            vec![1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         ];
 
         let index = LevelAssetIndex::build(&assets.ground, &assets.objects);
@@ -191,7 +191,9 @@ impl RenderableLevel {
 
             for tile in v_vec.iter() {
                 match tile {
+                    &0 => h_vec.push(TileType::Empty),
                     &1 => h_vec.push(TileType::Block),
+                    &2 => h_vec.push(TileType::OneWay),
                     _ => h_vec.push(TileType::Empty),
                 }
             }
@@ -230,27 +232,23 @@ impl RenderableLevel {
                         (bottom_left, below, bottom_right),
                     );
 
-                    match mat {
-                        ((l, 1, r), (1, 1, 1), (_, 1, _)) => {
-                            if l != 0 && r != 0 {
+                    if it == 1 {
+                        match mat {
+                            ((l, 1, r), (1, 1, 1), (_, 1, _)) => if l != 0 && r != 0 {
                                 level.index.find_ground(Square::MM)
                             } else if r != 0 {
                                 level.index.find_ground(Square::IBR)
                             } else {
                                 level.index.find_ground(Square::IBL)
-                            }
-                        }
-                        ((l, 0, r), (1, 1, 1), (_, 1, _)) => {
-                            if l != 0 {
+                            },
+                            ((l, 0, r), (1, 1, 1), (_, 1, _)) => if l != 0 {
                                 level.index.find_ground(Square::ILT)
                             } else if r != 0 {
                                 level.index.find_ground(Square::IRT)
                             } else {
                                 level.index.find_ground(Square::MT)
-                            }
-                        }
-                        ((_, a, _), (l, 1, r), (_, b, _)) => {
-                            if a == 0 {
+                            },
+                            ((_, a, _), (l, 1, r), (_, b, _)) => if a == 0 {
                                 if l == 0 {
                                     level.index.find_ground(Square::LT)
                                 } else if r == 0 {
@@ -274,9 +272,21 @@ impl RenderableLevel {
                                 } else {
                                     level.index.find_ground(Square::MM)
                                 }
-                            }
+                            },
+                            _ => None,
                         }
-                        _ => None,
+                    } else if it == 2 {
+                        if on_left != 0 && on_right != 0 {
+                            level.index.find_platform(Horizontal::Center)
+                        } else if on_left == 0 {
+                            level.index.find_platform(Horizontal::Left)
+                        } else if on_right == 0 {
+                            level.index.find_platform(Horizontal::Right)
+                        } else {
+                            level.index.find_platform(Horizontal::Center)
+                        }
+                    } else {
+                        None
                     }
                 }
             };

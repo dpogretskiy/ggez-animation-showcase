@@ -2,6 +2,7 @@
 use super::Vector2;
 use super::level::Terrain;
 use std::time::Duration;
+use std::cmp;
 
 #[derive(Debug)]
 pub struct AABB {
@@ -43,6 +44,8 @@ pub struct MovingObject {
     pub was_on_ground: bool,
     pub on_ground: bool,
 
+    pub on_platform: bool,
+
     pub was_at_ceiling: bool,
     pub at_ceiling: bool,
 }
@@ -65,6 +68,7 @@ impl MovingObject {
             pushes_right_wall: false,
             was_on_ground: false,
             on_ground: false,
+            on_platform: false,
             was_at_ceiling: false,
             at_ceiling: false,
         }
@@ -82,10 +86,10 @@ impl MovingObject {
         self.position += self.velocity * seconds(time);
 
         let mut ground_y = 0.0;
+        self.on_platform = false;
 
         if self.velocity.y <= 0.0 && self.has_ground(&mut ground_y, terrain) {
             self.position.y = ground_y + self.aabb.half_size.y - self.aabb_offset.y;
-            println!("Ground here: {}", self.position);
             self.velocity.y = 0.0;
             self.on_ground = true;
         } else {
@@ -95,46 +99,62 @@ impl MovingObject {
         self.aabb.center = self.position + self.aabb_offset;
     }
 
-    pub fn has_ground(&self, ground_y: &mut f64, terrain: &Terrain) -> bool {
-
+    pub fn has_ground(&mut self, ground_y: &mut f64, terrain: &Terrain) -> bool {
+        let old_center = self.old_position + self.aabb_offset;
         let center = self.position + self.aabb_offset;
-        let bottom_left = center - self.aabb.half_size + Vector2::new(1.0, -1.0);
-        let bottom_right = Vector2::new(
-            bottom_left.x + self.aabb.half_size.x * 2.0 - 2.0,
-            bottom_left.y,
-        );
-
+        let old_bottom_left: Vector2 = old_center - self.aabb.half_size + Vector2::new(1.0, -1.0);
+        let new_bottom_left: Vector2 = center - self.aabb.half_size + Vector2::new(1.0, -1.0);
+        let end_y = terrain.get_tile_y_at_point(new_bottom_left.y);
+        let beg_y = cmp::max(terrain.get_tile_y_at_point(old_bottom_left.y) - 1, end_y);
+        let dist = cmp::max((end_y - beg_y).abs(), 1);
         let mut tile_index_x;
-        let mut tile_index_y;
-
-        let mut checked_tile = bottom_left;
-
-        loop {
-            checked_tile.x = checked_tile.x.min(bottom_right.x);
-
-            tile_index_x = terrain.get_tile_x_at_point(checked_tile.x);
-            tile_index_y = terrain.get_tile_y_at_point(checked_tile.y);
-
-            *ground_y = tile_index_y as f64 * terrain.tile_size + terrain.tile_size / 2.0 +
-                terrain.position.y;
-
-            if terrain.is_obstacle(tile_index_x, tile_index_y) {
-                println!("Tile below: ({}, {})", tile_index_x, tile_index_y);
-                return true;
+        for tile_index_y in (end_y..beg_y + 1).rev() {
+            let bottom_left = lerp(
+                &new_bottom_left,
+                &old_bottom_left,
+                ((end_y as f64 - tile_index_y as f64) / dist as f64).abs(),
+            );
+            let bottom_right = Vector2::new(
+                bottom_left.x + self.aabb.half_size.x * 2.0 - 2.0,
+                bottom_left.y,
+            );
+            let mut checked_tile = bottom_left.clone();
+            'inner: loop {
+                checked_tile.x = checked_tile.x.min(bottom_right.x);
+                tile_index_x = terrain.get_tile_x_at_point(checked_tile.x);
+                *ground_y = tile_index_y as f64 * terrain.tile_size + terrain.tile_size / 2.0 +
+                    terrain.position.y;
+                if terrain.is_obstacle(tile_index_x, tile_index_y) {
+                    self.on_platform = false;
+                    return true;
+                } else if terrain.is_one_way_platform(tile_index_x, tile_index_y) &&
+                    (checked_tile.y - *ground_y).abs() <=
+                        MovingObject::PLATFORM_THRESHOLD + self.old_position.y - self.position.y
+                {
+                    self.on_platform = true;
+                };
+                if checked_tile.x >= bottom_right.x {
+                    if self.on_platform {
+                        return true;
+                    };
+                    break 'inner;
+                }
+                checked_tile.x += terrain.tile_size;
             }
-
-            if checked_tile.x >= bottom_right.x {
-                break;
-            }
-
-            checked_tile.x += terrain.tile_size;
         }
-
         false
     }
+
+    // pub fn has_ceiling()
+
+    pub const PLATFORM_THRESHOLD: f64 = 2.0;
 }
 
 
 pub fn seconds(dur: &Duration) -> f64 {
     dur.as_secs() as f64 + (dur.subsec_nanos() as f64 / 1000000000.0)
+}
+
+pub fn lerp(v1: &Vector2, v2: &Vector2, by: f64) -> Vector2 {
+    v1 * by + v2 * (1.0 - by)
 }

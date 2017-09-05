@@ -3,9 +3,7 @@ extern crate marker;
 extern crate nalgebra as na;
 extern crate rand;
 extern crate serde_json;
-extern crate cpuprofiler;
 
-use cpuprofiler::PROFILER;
 
 pub type Point2 = na::Point2<f64>;
 pub type Vector2 = na::Vector2<f64>;
@@ -71,17 +69,14 @@ impl event::EventHandler for Game {
 
         self.player_sm.handle_events(&mut self.player);
 
-        // if timer::check_update_time(ctx, 30) {
-        self.player_sm.update(
-            &mut self.player,
-            &dt,
-            &self.level.terrain,
-        );
-        self.player_sm.fixed_update(&mut self.player);
-        // self.fixed_update = Duration::from_secs(0);
-        // } else {
-        //     self.fixed_update += dt;
-        // };
+        self.player_sm
+            .update(&mut self.player, &dt, &self.level.terrain);
+        if timer::check_update_time(ctx, 30) {
+            self.player_sm.fixed_update(&mut self.player);
+            self.fixed_update = Duration::from_secs(0);
+        } else {
+            self.fixed_update += dt;
+        };
 
         self.camera.move_to(self.player.mv.position);
         // PROFILER.lock().unwrap().stop().expect("Could't stop!");
@@ -97,10 +92,7 @@ impl event::EventHandler for Game {
         self.level.level.assets.background.draw_camera(
             camera,
             ctx,
-            graphics::Point::new(
-                camera.location().x as f32,
-                camera.location().y as f32,
-            ),
+            graphics::Point::new(camera.location().x as f32, camera.location().y as f32),
             0.0,
         )?;
 
