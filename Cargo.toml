@@ -9,6 +9,7 @@ rand = "0.3"
 ggez = { version = "0.3.3", features=["cargo-resource-root"] }
 serde_json = "*"
 nalgebra = "0.13"
+ncollide = "0.13"
 
 [dependencies.tilesheet-marker]
 path = "../tilesheet-marker"

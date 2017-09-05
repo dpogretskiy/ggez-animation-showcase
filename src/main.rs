@@ -1,9 +1,9 @@
 extern crate ggez;
 extern crate marker;
 extern crate nalgebra as na;
+extern crate ncollide;
 extern crate rand;
 extern crate serde_json;
-
 
 pub type Point2 = na::Point2<f64>;
 pub type Vector2 = na::Vector2<f64>;
@@ -55,7 +55,7 @@ impl Game {
             player: p,
             player_sm: sm,
             level,
-            camera: Camera::new(w, h, 1600.0, 1000.0),
+            camera: Camera::new(w, h, 800.0, 600.0),
             fixed_update: Duration::from_secs(0),
         })
     }
@@ -68,11 +68,8 @@ impl event::EventHandler for Game {
 
         self.player_sm.handle_events(&mut self.player);
 
-        self.player_sm.update(
-            &mut self.player,
-            &dt,
-            &self.level.terrain,
-        );
+        self.player_sm
+            .update(&mut self.player, &dt, &self.level.terrain);
         if timer::check_update_time(ctx, 30) {
             self.player_sm.fixed_update(&mut self.player);
             self.fixed_update = Duration::from_secs(0);
@@ -97,10 +94,7 @@ impl event::EventHandler for Game {
         self.level.level.assets.background.draw_camera(
             camera,
             ctx,
-            graphics::Point::new(
-                camera.location().x as f32,
-                camera.location().y as f32,
-            ),
+            graphics::Point::new(camera.location().x as f32, camera.location().y as f32),
             0.0,
         )?;
 
@@ -150,15 +144,14 @@ use level::*;
 
 pub fn main() {
     let c = conf::Conf {
-        window_height: 1000,
-        window_width: 1600,
+        window_width: 800,
+        window_height: 600,
         resizable: false,
         vsync: false,
         ..Default::default()
     };
     let ctx = &mut Context::load_from_conf("config", "me", c).unwrap();
     let mut state = Game::new(ctx).unwrap();
-
 
     event::run(ctx, &mut state).unwrap();
 }

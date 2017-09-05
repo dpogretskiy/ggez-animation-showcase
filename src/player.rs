@@ -25,7 +25,7 @@ pub struct Player {
     pub input: PlayerInput,
     pub direction: Direction,
     pub mv: MovingObject,
-    pub lg: LedgeGrabber,
+    pub lg: LedgeGrabbing,
 }
 
 impl Player {
@@ -56,7 +56,7 @@ impl Player {
             },
             direction: Direction::Right,
             mv: MovingObject::new(Vector2::new(300.0, 800.0), aabb),
-            lg: LedgeGrabber::new(),
+            lg: LedgeGrabbing::new(),
         };
 
         let mut sm = StateMachine::new(Idle);
@@ -514,7 +514,7 @@ impl State for LedgeGrab {
         self.on_start(player);
     }
     /// Executed on every frame before updating, for use in reacting to events.
-    fn handle_events(&mut self, player: &mut Player) -> Trans {
+    fn handle_events(&mut self, _player: &mut Player) -> Trans {
         Trans::None
     }
 
