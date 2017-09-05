@@ -234,45 +234,51 @@ impl RenderableLevel {
 
                     if it == 1 {
                         match mat {
-                            ((l, 1, r), (1, 1, 1), (_, 1, _)) => if l != 0 && r != 0 {
-                                level.index.find_ground(Square::MM)
-                            } else if r != 0 {
-                                level.index.find_ground(Square::IBR)
-                            } else {
-                                level.index.find_ground(Square::IBL)
-                            },
-                            ((l, 0, r), (1, 1, 1), (_, 1, _)) => if l != 0 {
-                                level.index.find_ground(Square::ILT)
-                            } else if r != 0 {
-                                level.index.find_ground(Square::IRT)
-                            } else {
-                                level.index.find_ground(Square::MT)
-                            },
-                            ((_, a, _), (l, 1, r), (_, b, _)) => if a == 0 {
-                                if l == 0 {
-                                    level.index.find_ground(Square::LT)
-                                } else if r == 0 {
-                                    level.index.find_ground(Square::RT)
+                            ((l, 1, r), (1, 1, 1), (_, 1, _)) => {
+                                if l != 0 && r != 0 {
+                                    level.index.find_ground(Square::MM)
+                                } else if r != 0 {
+                                    level.index.find_ground(Square::IBR)
+                                } else {
+                                    level.index.find_ground(Square::IBL)
+                                }
+                            }
+                            ((l, 0, r), (1, 1, 1), (_, 1, _)) => {
+                                if l != 0 {
+                                    level.index.find_ground(Square::ILT)
+                                } else if r != 0 {
+                                    level.index.find_ground(Square::IRT)
                                 } else {
                                     level.index.find_ground(Square::MT)
                                 }
-                            } else if b == 0 {
-                                if l == 0 {
-                                    level.index.find_ground(Square::LB)
-                                } else if r == 0 {
-                                    level.index.find_ground(Square::RB)
+                            }
+                            ((_, a, _), (l, 1, r), (_, b, _)) => {
+                                if a == 0 {
+                                    if l == 0 {
+                                        level.index.find_ground(Square::LT)
+                                    } else if r == 0 {
+                                        level.index.find_ground(Square::RT)
+                                    } else {
+                                        level.index.find_ground(Square::MT)
+                                    }
+                                } else if b == 0 {
+                                    if l == 0 {
+                                        level.index.find_ground(Square::LB)
+                                    } else if r == 0 {
+                                        level.index.find_ground(Square::RB)
+                                    } else {
+                                        level.index.find_ground(Square::MB)
+                                    }
                                 } else {
-                                    level.index.find_ground(Square::MB)
+                                    if l == 0 {
+                                        level.index.find_ground(Square::LM)
+                                    } else if r == 0 {
+                                        level.index.find_ground(Square::RM)
+                                    } else {
+                                        level.index.find_ground(Square::MM)
+                                    }
                                 }
-                            } else {
-                                if l == 0 {
-                                    level.index.find_ground(Square::LM)
-                                } else if r == 0 {
-                                    level.index.find_ground(Square::RM)
-                                } else {
-                                    level.index.find_ground(Square::MM)
-                                }
-                            },
+                            }
                             _ => None,
                         }
                     } else if it == 2 {

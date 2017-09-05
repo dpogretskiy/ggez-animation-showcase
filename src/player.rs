@@ -6,16 +6,15 @@ use std::boxed::Box;
 use std::time::Duration;
 
 use ggez::graphics::*;
-use ggez::graphics;
 
 use super::camera::*;
-use super::physics::MovingObject;
-use super::physics::seconds;
+use super::physics::*;
 use super::level::Terrain;
+use super::debug;
 use sprite::Loader;
 use sprite::animation::Animated;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Direction {
     Left,
     Right,
@@ -26,12 +25,24 @@ pub struct Player {
     pub input: PlayerInput,
     pub direction: Direction,
     pub mv: MovingObject,
+    pub lg: LedgeGrabber,
 }
 
 impl Player {
     pub fn new(ctx: &mut Context) -> GameResult<(Player, StateMachine)> {
         let scale = 0.4;
+
         let data = PlayerData::new(ctx, scale)?;
+
+
+
+        let player_size = Vector2::new(290.0, 500.0) * scale;
+        let aabb = AABB::new_full(
+            Vector2::new(300.0, 800.0),
+            player_size,
+            Vector2::new(0.7, 0.8),
+        );
+
         let mut p = Player {
             data,
             input: PlayerInput {
@@ -44,10 +55,8 @@ impl Player {
                 attack: false,
             },
             direction: Direction::Right,
-            mv: MovingObject::new(
-                Vector2::new(300.0, 800.0),
-                Vector2::new(290.0 * scale, 500.0 * scale),
-            ),
+            mv: MovingObject::new(Vector2::new(300.0, 800.0), aabb),
+            lg: LedgeGrabber::new(),
         };
 
         let mut sm = StateMachine::new(Idle);
@@ -70,6 +79,7 @@ impl Player {
     const MAX_FALLING_SPEED: f64 = -4000.0;
     const JUMP_SPEED: f64 = 1600.0;
     const WALK_SPEED: f64 = 700.0;
+    const JUMP_FRAMES_THRESHOLD: isize = 4;
 }
 
 fn draw_animation_frame(
@@ -99,16 +109,7 @@ fn draw_animation_frame(
         },
     )?;
 
-    if super::debug {
-        let mut rect = ss.current_frame_rect();
-        let dd = camera.calculate_dest_point(player.mv.position.clone());
-        rect.x = dd.x;
-        rect.y = dd.y;
-        rect.w = player.mv.aabb.half_size.x as f32 * 2.0;
-        rect.h = player.mv.aabb.half_size.y as f32 * 2.0;
-        graphics::set_color(ctx, WHITE)?;
-        graphics::rectangle(ctx, DrawMode::Line, rect)?;
-    };
+    debug::Debug::draw_aabb(ctx, player, camera);
 
     Ok(())
 }
@@ -232,6 +233,7 @@ impl State for Idle {
         draw_animation_frame(player, ctx, camera, &player.data.idle, &player.direction).unwrap();
     }
 }
+
 pub struct Running;
 
 impl State for Running {
@@ -277,16 +279,20 @@ impl State for Running {
 
     fn update(&mut self, player: &mut Player, duration: &Duration, terrain: &Terrain) -> Trans {
         match player.direction {
-            Direction::Left => if player.mv.pushes_left_wall {
-                player.mv.velocity.x = 0.0;
-            } else {
-                player.mv.velocity.x = -Player::WALK_SPEED;
-            },
-            Direction::Right => if player.mv.pushes_right_wall {
-                player.mv.velocity.x = 0.0;
-            } else {
-                player.mv.velocity.x = Player::WALK_SPEED;
-            },
+            Direction::Left => {
+                if player.mv.pushes_left_wall {
+                    player.mv.velocity.x = 0.0;
+                } else {
+                    player.mv.velocity.x = -Player::WALK_SPEED;
+                }
+            }
+            Direction::Right => {
+                if player.mv.pushes_right_wall {
+                    player.mv.velocity.x = 0.0;
+                } else {
+                    player.mv.velocity.x = Player::WALK_SPEED;
+                }
+            }
         }
 
         player.mv.update_physics(duration, terrain);
@@ -308,6 +314,11 @@ pub struct Jumping;
 impl State for Jumping {
     fn on_start(&mut self, player: &mut Player) {
         player.data.jumping.reset();
+
+        if !player.mv.on_ground && player.mv.was_on_ground {
+            player.mv.frames_from_jump_start = 0;
+        }
+
     }
 
     fn on_resume(&mut self, player: &mut Player) {
@@ -317,18 +328,32 @@ impl State for Jumping {
     fn handle_events(&mut self, player: &mut Player) -> Trans {
         player.direct();
 
+        if player.mv.cannot_go_left_frames > 0 {
+            player.mv.cannot_go_left_frames -= 1;
+            player.input.left = false;
+        };
+
+        if player.mv.cannot_go_right_frames > 0 {
+            player.mv.cannot_go_right_frames -= 1;
+            player.input.right = false;
+        };
+
         if player.input.left ^ player.input.right {
             match player.direction {
-                Direction::Left => if player.mv.pushes_left_wall {
-                    player.mv.velocity.x = 0.0;
-                } else {
-                    player.mv.velocity.x = -Player::WALK_SPEED;
-                },
-                Direction::Right => if player.mv.pushes_right_wall {
-                    player.mv.velocity.x = 0.0;
-                } else {
-                    player.mv.velocity.x = Player::WALK_SPEED;
-                },
+                Direction::Left => {
+                    if player.mv.pushes_left_wall {
+                        player.mv.velocity.x = 0.0;
+                    } else {
+                        player.mv.velocity.x = -Player::WALK_SPEED;
+                    }
+                }
+                Direction::Right => {
+                    if player.mv.pushes_right_wall {
+                        player.mv.velocity.x = 0.0;
+                    } else {
+                        player.mv.velocity.x = Player::WALK_SPEED;
+                    }
+                }
             };
         } else {
             player.mv.velocity.x = 0.0;
@@ -336,6 +361,12 @@ impl State for Jumping {
 
         let t = if player.input.attack {
             Trans::Switch(Box::new(Attacking))
+        } else if player.input.jump &&
+                   player.mv.frames_from_jump_start <= Player::JUMP_FRAMES_THRESHOLD &&
+                   player.mv.velocity.y <= 0.0 && !player.mv.at_ceiling
+        {
+            player.mv.velocity.y = Player::JUMP_SPEED;
+            Trans::None
         } else {
             Trans::None
         };
@@ -348,16 +379,27 @@ impl State for Jumping {
         let y_vel = Player::GRAVITY * seconds(&duration) + player.mv.velocity.y;
         player.mv.velocity.y = y_vel.max(Player::MAX_FALLING_SPEED);
         player.mv.update_physics(duration, terrain);
+        let gl = player.lg.grab_ledge(&mut player.mv, &player.input, terrain);
 
         if player.mv.on_ground {
             Trans::Pop
+        } else if gl {
+            Trans::Switch(Box::new(LedgeGrab))
         } else {
             Trans::None
         }
+
     }
 
     fn fixed_update(&mut self, player: &mut Player) -> Trans {
         player.data.jumping.roll_frames();
+        if player.mv.frames_from_jump_start <= Player::JUMP_FRAMES_THRESHOLD {
+            if player.mv.at_ceiling || player.mv.velocity.y > 0.0 {
+                player.mv.frames_from_jump_start = Player::JUMP_FRAMES_THRESHOLD + 1;
+            }
+        }
+
+        player.mv.frames_from_jump_start += 1;
         Trans::None
     }
 
@@ -459,5 +501,53 @@ impl State for Attacking {
             &player.data.attacking,
             &player.direction,
         ).unwrap();
+    }
+}
+
+pub struct LedgeGrab;
+
+impl State for LedgeGrab {
+    fn on_start(&mut self, player: &mut Player) {
+        player.data.idle.reset();
+    }
+    fn on_resume(&mut self, player: &mut Player) {
+        self.on_start(player);
+    }
+    /// Executed on every frame before updating, for use in reacting to events.
+    fn handle_events(&mut self, player: &mut Player) -> Trans {
+        Trans::None
+    }
+
+    fn update(&mut self, player: &mut Player, duration: &Duration, terrain: &Terrain) -> Trans {
+        player.mv.update_physics(duration, terrain);
+
+        let ledge_on_left = player.lg.ledge_tile.0 as f64 * terrain.tile_size <
+            player.mv.position.x;
+        let ledge_on_right = !ledge_on_left;
+
+        if player.input.down || (player.input.right && ledge_on_left) ||
+            (player.input.left && ledge_on_right)
+        {
+            if ledge_on_left {
+                player.mv.cannot_go_left_frames = 3;
+            } else {
+                player.mv.cannot_go_right_frames = 3;
+            };
+            Trans::Switch(Box::new(Jumping))
+        } else if player.input.jump {
+            player.mv.velocity.y = Player::JUMP_SPEED;
+            Trans::Switch(Box::new(Jumping))
+        } else {
+            Trans::None
+        }
+    }
+
+    fn fixed_update(&mut self, player: &mut Player) -> Trans {
+        player.data.idle.roll_frames();
+        Trans::None
+    }
+
+    fn draw(&mut self, ctx: &mut Context, player: &Player, camera: &Camera) {
+        draw_animation_frame(player, ctx, camera, &player.data.idle, &player.direction).unwrap();
     }
 }
