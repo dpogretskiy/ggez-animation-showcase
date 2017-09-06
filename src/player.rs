@@ -34,8 +34,6 @@ impl Player {
 
         let data = PlayerData::new(ctx, scale)?;
 
-
-
         let player_size = Vector2::new(290.0, 500.0) * scale;
         let aabb = AABB::new_full(
             Vector2::new(300.0, 800.0),

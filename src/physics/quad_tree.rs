@@ -2,23 +2,24 @@ use super::*;
 
 use std::borrow::BorrowMut;
 use std::cell::RefCell;
+use std::iter;
 
 pub trait Positioned {
     fn to_rect(&self) -> Rect;
 }
 
-pub struct QuadTree<T> {
+pub struct QuadTree<'a, T: 'a> {
     level: usize,
     bounds: Rect,
-    objects: Vec<T>,
-    nodes: Option<RefCell<Box<[QuadTree<T>; 4]>>>,
+    objects: Vec<&'a T>,
+    nodes: Option<RefCell<Box<[QuadTree<'a, T>; 4]>>>,
 }
 
-impl<T> QuadTree<T>
+impl<'a, T> QuadTree<'a, T>
 where
-    T: Clone + Sized + Positioned,
+    T: Positioned,
 {
-    pub fn new(level: usize, bounds: Rect) -> QuadTree<T> {
+    pub fn new(level: usize, bounds: Rect) -> QuadTree<'a, T> {
         QuadTree {
             level,
             bounds,
@@ -40,18 +41,34 @@ where
 
         let level = self.level + 1;
 
-        self.nodes = Some(RefCell::new(Box::new([
-            QuadTree::new(level, Rect::rect(x + sub_width, y, sub_width, sub_height)),
-            QuadTree::new(level, Rect::rect(x, y, sub_width, sub_height)),
-            QuadTree::new(level, Rect::rect(x, y + sub_height, sub_width, sub_height)),
-            QuadTree::new(
-                level,
-                Rect::rect(x + sub_width, y + sub_height, sub_width, sub_height),
-            ),
-        ])));
+        self.nodes = Some(RefCell::new(Box::new(
+            [
+                QuadTree::new(
+                    level,
+                    Rect::rect(x + sub_width, y, sub_width, sub_height),
+                ),
+                QuadTree::new(
+                    level,
+                    Rect::rect(x, y, sub_width, sub_height),
+                ),
+                QuadTree::new(
+                    level,
+                    Rect::rect(x, y + sub_height, sub_width, sub_height),
+                ),
+                QuadTree::new(
+                    level,
+                    Rect::rect(
+                        x + sub_width,
+                        y + sub_height,
+                        sub_width,
+                        sub_height,
+                    ),
+                ),
+            ],
+        )));
     }
 
-    pub fn insert(&mut self, object: T) {
+    pub fn insert(&mut self, object: &'a T) {
         if let Some(ref nodes) = self.nodes {
             let index = get_index(&self.bounds, &object.to_rect());
             if index != -1 {
@@ -79,7 +96,7 @@ where
         }
     }
 
-    fn retreive_rec(&self, ret: &mut Vec<T>, rect: Rect) {
+    fn retreive_rec(&self, ret: &mut Vec<&'a T>, rect: Rect) {
         let ix = get_index(&self.bounds, &rect);
         if ix != -1 {
             if let Some(ref nodes) = self.nodes {
@@ -87,10 +104,10 @@ where
             }
         }
 
-        ret.extend_from_slice(self.objects.as_slice());
+        ret.extend(self.objects.iter());
     }
 
-    pub fn retrieve(&self, rect: Rect) -> Vec<T> {
+    pub fn retrieve(&self, rect: Rect) -> Vec<&'a T> {
         let mut ret = vec![];
         self.retreive_rec(&mut ret, rect);
         ret
