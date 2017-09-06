@@ -2,6 +2,7 @@ use super::*;
 use level::Terrain;
 use std::time::Duration;
 use std::cmp;
+use debug::Debug;
 
 #[derive(Debug, Clone)]
 pub struct MovingObject {
@@ -82,14 +83,6 @@ impl MovingObject {
             self.on_ground = false;
         }
 
-        if self.velocity.y >= 0.0 && self.has_ceiling(&mut ceiling_y, terrain) {
-            self.position.y = ceiling_y - self.aabb.half_size().y - self.aabb.offset.y - 1.0;
-            self.velocity.y = 0.0;
-            self.at_ceiling = true;
-        } else {
-            self.at_ceiling = false;
-        }
-
         if self.velocity.x <= 0.0 && self.collides_with_left_wall(&mut left_wall_x, terrain) {
             if self.old_position.x - self.aabb.half_size().x + self.aabb.offset.x >= left_wall_x {
                 self.position.x = left_wall_x + self.aabb.half_size().x - self.aabb.offset.x;
@@ -110,7 +103,18 @@ impl MovingObject {
             self.pushes_right_wall = false;
         }
 
+
+        if self.velocity.y >= 0.0 && self.has_ceiling(&mut ceiling_y, terrain) {
+            self.position.y = ceiling_y - self.aabb.half_size().y - self.aabb.offset.y - 1.0;
+            self.velocity.y = 0.0;
+            self.at_ceiling = true;
+        } else {
+            self.at_ceiling = false;
+        }
+
         self.aabb.center = self.position + self.aabb.offset;
+
+        Debug::detect_teleporting(&self);
     }
 
     pub fn has_ground(&mut self, ground_y: &mut f64, terrain: &Terrain) -> bool {
@@ -128,8 +132,9 @@ impl MovingObject {
             let bottom_left = lerp(
                 &new_bottom_left,
                 &old_bottom_left,
-                ((end_y as f64 - tile_index_y as f64) / dist as f64).abs(),
+                (end_y - tile_index_y).abs() as f64 / dist as f64,
             );
+
             let bottom_right = Vector2::new(
                 bottom_left.x + self.aabb.half_size().x * 2.0 - 2.0,
                 bottom_left.y,
@@ -168,18 +173,15 @@ impl MovingObject {
         let old_top_right =
             round_vector(old_center + self.aabb.half_size() + Vector2::new(-1.0, 1.0));
         let new_top_right = round_vector(center + self.aabb.half_size() + Vector2::new(-1.0, 1.0));
-        let new_top_left = round_vector(Vector2::new(
-            new_top_right.x - self.aabb.half_size().x * 2.0 + 2.0,
-            new_top_right.y,
-        ));
         let end_y = terrain.get_tile_y_at_point(new_top_right.y);
         let beg_y = cmp::min(terrain.get_tile_y_at_point(old_top_right.y) + 1, end_y);
         let dist = cmp::max((end_y - beg_y).abs(), 1);
         let mut tile_index_x;
         for tile_index_y in beg_y..end_y + 1 {
             let top_right = lerp(
-                &new_top_left,
+                //these 2 should be the opposite way...?
                 &old_top_right,
+                &new_top_right,
                 ((end_y - tile_index_y).abs() as f64 / dist as f64),
             );
             let top_left = Vector2::new(

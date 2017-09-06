@@ -41,23 +41,24 @@ where
 
         let level = self.level + 1;
 
+<<<<<<< HEAD
         self.nodes = Some(RefCell::new(Box::new(
             [
                 QuadTree::new(
                     level,
-                    Rect::new(x + sub_width, y, sub_width, sub_height),
+                    Rect::rect(x + sub_width, y, sub_width, sub_height),
                 ),
                 QuadTree::new(
                     level,
-                    Rect::new(x, y, sub_width, sub_height),
+                    Rect::rect(x, y, sub_width, sub_height),
                 ),
                 QuadTree::new(
                     level,
-                    Rect::new(x, y + sub_height, sub_width, sub_height),
+                    Rect::rect(x, y + sub_height, sub_width, sub_height),
                 ),
                 QuadTree::new(
                     level,
-                    Rect::new(
+                    Rect::rect(
                         x + sub_width,
                         y + sub_height,
                         sub_width,
@@ -66,6 +67,7 @@ where
                 ),
             ],
         )));
+=======
         self.nodes = Some(RefCell::new(Box::new([
             QuadTree::new(level, Rect::new(x + sub_width, y, sub_width, sub_height)),
             QuadTree::new(level, Rect::new(x, y, sub_width, sub_height)),
@@ -75,6 +77,7 @@ where
                 Rect::new(x + sub_width, y + sub_height, sub_width, sub_height),
             ),
         ])));
+>>>>>>> temp:
     }
 
     pub fn insert(&mut self, object: &'a T) {

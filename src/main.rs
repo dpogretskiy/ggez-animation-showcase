@@ -17,6 +17,7 @@ mod debug;
 
 use ggez::conf;
 use ggez::event;
+use ggez::event::{Axis, Button};
 use ggez::timer;
 use ggez::graphics;
 use ggez::{Context, GameResult};
@@ -54,7 +55,7 @@ impl Game {
             player: p,
             player_sm: sm,
             level,
-            camera: Camera::new(w, h, 800.0, 600.0),
+            camera: Camera::new(w, h, 1600.0, 1200.0),
             fixed_update: Duration::from_secs(0),
         })
     }
@@ -65,6 +66,9 @@ impl event::EventHandler for Game {
     fn update(&mut self, ctx: &mut Context, dt: Duration) -> GameResult<()> {
         // let update_start = timer::get_time_since_start(ctx);
 
+        let w = self::physics::world::World::new();
+        w.update_areas(&self.camera);
+
         self.player_sm.handle_events(&mut self.player);
 
         self.player_sm.update(
@@ -74,23 +78,18 @@ impl event::EventHandler for Game {
         );
         if timer::check_update_time(ctx, 30) {
             self.player_sm.fixed_update(&mut self.player);
-            self.fixed_update = Duration::from_secs(0);
-        } else {
-            self.fixed_update += dt;
         };
         self.camera.move_to(self.player.mv.position);
 
         // let update_end = timer::get_time_since_start(ctx);
         // let delta = update_end - update_start;
-        // println!("Update: {}", physics::seconds(&delta));
-        println!("Fps: {}", timer::get_fps(ctx));
+        // println!("Fps: {}", timer::get_fps(ctx));
 
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx);
-
         let camera = &self.camera;
 
         self.level.level.assets.background.draw_camera(
@@ -105,12 +104,11 @@ impl event::EventHandler for Game {
 
         self.player_sm.draw(ctx, camera, &self.player);
 
-        Debug::draw_level_obstacles(ctx, &*self.level, camera);
-
         for &(ref img, ref dp) in self.level.sprites.iter() {
             (&**img).draw_ex_camera(camera, ctx, dp.clone())?;
         }
 
+        Debug::draw_level_obstacles(ctx, &self.level.terrain, camera);
         graphics::present(ctx);
 
         Ok(())
@@ -142,6 +140,43 @@ impl event::EventHandler for Game {
                 _ => (),
             }
         }
+    }
+
+    fn controller_button_down_event(&mut self, btn: Button, _instance_id: i32) {
+        match btn {
+            Button::A => self.player.input.jump = true,
+            Button::X => self.player.input.attack = true,
+            Button::B => self.player.input.slide = true,
+            Button::LeftShoulder => self.player.mv.position = Vector2::new(300.0, 500.0),
+            _ => (),
+        }
+
+        Debug::gamepad_button(btn, _instance_id);
+    }
+    fn controller_button_up_event(&mut self, _btn: Button, _instance_id: i32) {}
+    fn controller_axis_event(&mut self, axis: Axis, value: i16, _instance_id: i32) {
+        match axis {
+            Axis::LeftX => {
+                if value > 7500 {
+                    self.player.input.right = true
+                } else {
+                    self.player.input.right = false
+                };
+                if value < -7500 {
+                    self.player.input.left = true
+                } else {
+                    self.player.input.left = false
+                }
+            }
+            Axis::LeftY => if value > 7500 {
+                self.player.input.down = true
+            } else {
+                self.player.input.down = false
+            },
+            _ => (),
+        }
+
+        Debug::gamepad_axis(axis, value);
     }
 }
 

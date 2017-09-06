@@ -45,19 +45,19 @@ where
             [
                 QuadTree::new(
                     level,
-                    Rect::new(x + sub_width, y, sub_width, sub_height),
+                    Rect::rect(x + sub_width, y, sub_width, sub_height),
                 ),
                 QuadTree::new(
                     level,
-                    Rect::new(x, y, sub_width, sub_height),
+                    Rect::rect(x, y, sub_width, sub_height),
                 ),
                 QuadTree::new(
                     level,
-                    Rect::new(x, y + sub_height, sub_width, sub_height),
+                    Rect::rect(x, y + sub_height, sub_width, sub_height),
                 ),
                 QuadTree::new(
                     level,
-                    Rect::new(
+                    Rect::rect(
                         x + sub_width,
                         y + sub_height,
                         sub_width,
@@ -66,15 +66,6 @@ where
                 ),
             ],
         )));
-        self.nodes = Some(RefCell::new(Box::new([
-            QuadTree::new(level, Rect::new(x + sub_width, y, sub_width, sub_height)),
-            QuadTree::new(level, Rect::new(x, y, sub_width, sub_height)),
-            QuadTree::new(level, Rect::new(x, y + sub_height, sub_width, sub_height)),
-            QuadTree::new(
-                level,
-                Rect::new(x + sub_width, y + sub_height, sub_width, sub_height),
-            ),
-        ])));
     }
 
     pub fn insert(&mut self, object: &'a T) {
@@ -123,7 +114,6 @@ where
     }
 }
 
-#[derive(Debug)]
 pub struct Rect {
     pub x: f64,
     pub y: f64,
@@ -132,7 +122,7 @@ pub struct Rect {
 }
 
 impl Rect {
-    pub fn new(x: f64, y: f64, w: f64, h: f64) -> Rect {
+    fn rect(x: f64, y: f64, w: f64, h: f64) -> Rect {
         Rect { x, y, w, h }
     }
 }
@@ -141,7 +131,7 @@ impl Positioned for MovingObject {
     fn to_rect(&self) -> Rect {
         let xy = self.position - self.aabb.half_size() + self.aabb.offset;
         let wh = self.aabb.half_size() * 2.0;
-        Rect::new(xy.x, xy.y, wh.x, wh.y)
+        Rect::rect(xy.x, xy.y, wh.x, wh.y)
     }
 }
 

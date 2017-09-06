@@ -200,7 +200,7 @@ impl State for Idle {
             Trans::Push(Box::new(Jumping))
         } else if pi.down {
             if mv.on_platform {
-                mv.position.y -= MovingObject::PLATFORM_THRESHOLD;
+                mv.position.y -= MovingObject::PLATFORM_THRESHOLD * 2.0;
             };
             Trans::Push(Box::new(Jumping))
         } else if pi.left ^ pi.right {
@@ -260,7 +260,7 @@ impl State for Running {
             Trans::Push(Box::new(Jumping))
         } else if pi.down {
             if mv.on_platform {
-                mv.position.y -= MovingObject::PLATFORM_THRESHOLD;
+                mv.position.y -= MovingObject::PLATFORM_THRESHOLD * 2.0;
             }
             Trans::Push(Box::new(Jumping))
         } else if pi.slide {
@@ -277,20 +277,16 @@ impl State for Running {
 
     fn update(&mut self, player: &mut Player, duration: &Duration, terrain: &Terrain) -> Trans {
         match player.direction {
-            Direction::Left => {
-                if player.mv.pushes_left_wall {
-                    player.mv.velocity.x = 0.0;
-                } else {
-                    player.mv.velocity.x = -Player::WALK_SPEED;
-                }
-            }
-            Direction::Right => {
-                if player.mv.pushes_right_wall {
-                    player.mv.velocity.x = 0.0;
-                } else {
-                    player.mv.velocity.x = Player::WALK_SPEED;
-                }
-            }
+            Direction::Left => if player.mv.pushes_left_wall {
+                player.mv.velocity.x = 0.0;
+            } else {
+                player.mv.velocity.x = -Player::WALK_SPEED;
+            },
+            Direction::Right => if player.mv.pushes_right_wall {
+                player.mv.velocity.x = 0.0;
+            } else {
+                player.mv.velocity.x = Player::WALK_SPEED;
+            },
         }
 
         player.mv.update_physics(duration, terrain);
@@ -316,7 +312,6 @@ impl State for Jumping {
         if !player.mv.on_ground && player.mv.was_on_ground {
             player.mv.frames_from_jump_start = 0;
         }
-
     }
 
     fn on_resume(&mut self, player: &mut Player) {
@@ -338,20 +333,16 @@ impl State for Jumping {
 
         if player.input.left ^ player.input.right {
             match player.direction {
-                Direction::Left => {
-                    if player.mv.pushes_left_wall {
-                        player.mv.velocity.x = 0.0;
-                    } else {
-                        player.mv.velocity.x = -Player::WALK_SPEED;
-                    }
-                }
-                Direction::Right => {
-                    if player.mv.pushes_right_wall {
-                        player.mv.velocity.x = 0.0;
-                    } else {
-                        player.mv.velocity.x = Player::WALK_SPEED;
-                    }
-                }
+                Direction::Left => if player.mv.pushes_left_wall {
+                    player.mv.velocity.x = 0.0;
+                } else {
+                    player.mv.velocity.x = -Player::WALK_SPEED;
+                },
+                Direction::Right => if player.mv.pushes_right_wall {
+                    player.mv.velocity.x = 0.0;
+                } else {
+                    player.mv.velocity.x = Player::WALK_SPEED;
+                },
             };
         } else {
             player.mv.velocity.x = 0.0;
@@ -360,8 +351,8 @@ impl State for Jumping {
         let t = if player.input.attack {
             Trans::Switch(Box::new(Attacking))
         } else if player.input.jump &&
-                   player.mv.frames_from_jump_start <= Player::JUMP_FRAMES_THRESHOLD &&
-                   player.mv.velocity.y <= 0.0 && !player.mv.at_ceiling
+            player.mv.frames_from_jump_start <= Player::JUMP_FRAMES_THRESHOLD &&
+            player.mv.velocity.y <= 0.0 && !player.mv.at_ceiling
         {
             player.mv.velocity.y = Player::JUMP_SPEED;
             Trans::None
@@ -386,7 +377,6 @@ impl State for Jumping {
         } else {
             Trans::None
         }
-
     }
 
     fn fixed_update(&mut self, player: &mut Player) -> Trans {
@@ -519,8 +509,8 @@ impl State for LedgeGrab {
     fn update(&mut self, player: &mut Player, duration: &Duration, terrain: &Terrain) -> Trans {
         player.mv.update_physics(duration, terrain);
 
-        let ledge_on_left = player.lg.ledge_tile.0 as f64 * terrain.tile_size <
-            player.mv.position.x;
+        let ledge_on_left =
+            player.lg.ledge_tile.0 as f64 * terrain.tile_size < player.mv.position.x;
         let ledge_on_right = !ledge_on_left;
 
         if player.input.down || (player.input.right && ledge_on_left) ||

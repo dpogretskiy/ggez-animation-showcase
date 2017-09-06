@@ -3,6 +3,7 @@ mod moving_object;
 mod ledge_grabbing;
 mod physics_nc;
 mod quad_tree;
+pub mod world;
 
 pub use self::aabb::AABB;
 pub use self::moving_object::MovingObject;
@@ -16,7 +17,7 @@ pub fn seconds(dur: &Duration) -> f64 {
 }
 
 pub fn lerp(v1: &Vector2, v2: &Vector2, by: f64) -> Vector2 {
-    v1 * by + v2 * (1.0 - by)
+    v1 * (1.0 - by) + v2 * by
 }
 
 pub fn round_vector(mut v: Vector2) -> Vector2 {

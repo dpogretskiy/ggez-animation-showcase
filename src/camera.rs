@@ -19,6 +19,7 @@
 use ggez;
 use ggez::GameResult;
 use ggez::graphics;
+use ggez::graphics::DrawParam;
 use na;
 pub use Vector2;
 
@@ -47,6 +48,10 @@ impl Camera {
 
     pub fn move_to(&mut self, to: Vector2) {
         self.view_center = to;
+    }
+
+    pub fn draw_scale(&self) -> graphics::Point {
+        graphics::Point::new((self.screen_size.x / self.view_size.x) as f32 , (self.screen_size.y / self.view_size.y) as f32)
     }
 
     /// Translates a point in world-space to a point in
@@ -90,6 +95,10 @@ impl Camera {
         self.view_center
     }
 
+    pub fn size(&self) -> Vector2 {
+        self.view_size
+    }
+
     pub fn calculate_dest_point(&self, location: Vector2) -> graphics::Point {
         let (sx, sy) = self.world_to_screen_coords(location);
         graphics::Point::new(sx as f32, sy as f32)
@@ -108,8 +117,13 @@ where
     ) -> GameResult<()> {
         let dest = Vector2::new(p.dest.x as f64, p.dest.y as f64);
         let dest = camera.calculate_dest_point(dest);
+        let scale = camera.draw_scale();
+        let orig_scale = p.scale.clone();
         let mut my_p = p;
         my_p.dest = dest;
+        my_p.scale = graphics::Point::new(
+            orig_scale.x * scale.x,
+            orig_scale.y * scale.y);
         self.draw_ex(ctx, my_p)
     }
 
@@ -122,7 +136,13 @@ where
     ) -> GameResult<()> {
         let dest = Vector2::new(dest.x as f64, dest.y as f64);
         let dest = camera.calculate_dest_point(dest);
-        self.draw(ctx, dest, rotation)
+        let scale = camera.draw_scale();
+        self.draw_ex(ctx, DrawParam {
+            dest,
+            scale,
+            rotation,
+            ..Default::default()
+        })
     }
 }
 
