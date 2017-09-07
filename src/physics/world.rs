@@ -20,11 +20,9 @@ impl World {
         let vs = camera.size();
         let vc = camera.location();
 
-        let xy = vc - vs;
+        let xy = vc - vs * 0.666;
 
-        let rect = quad_tree::Rect::new(xy.x, xy.y, vs.x * 2.0, vs.y * 2.0);
+        let rect = quad_tree::Rect::new(xy.x, xy.y, vs.x * 1.5, vs.y * 1.5);
         // let qt = quad_tree::QuadTree::new(0, rect);
-
-        println!("{:?}", rect);
     }
 }

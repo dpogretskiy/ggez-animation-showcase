@@ -26,6 +26,7 @@ pub struct Player {
     pub direction: Direction,
     pub mv: MovingObject,
     pub lg: LedgeGrabbing,
+    pub dj: DoubleJumping,
 }
 
 impl Player {
@@ -55,6 +56,7 @@ impl Player {
             direction: Direction::Right,
             mv: MovingObject::new(Vector2::new(300.0, 800.0), aabb),
             lg: LedgeGrabbing::new(),
+            dj: DoubleJumping::new(),
         };
 
         let mut sm = StateMachine::new(Idle);
@@ -73,11 +75,11 @@ impl Player {
         };
     }
 
-    const GRAVITY: f64 = -3000.0;
-    const MAX_FALLING_SPEED: f64 = -4000.0;
-    const JUMP_SPEED: f64 = 1600.0;
-    const WALK_SPEED: f64 = 700.0;
-    const JUMP_FRAMES_THRESHOLD: isize = 4;
+    pub const GRAVITY: f64 = -3000.0;
+    pub const MAX_FALLING_SPEED: f64 = -4000.0;
+    pub const JUMP_SPEED: f64 = 1600.0;
+    pub const WALK_SPEED: f64 = 700.0;
+    pub const JUMP_FRAMES_THRESHOLD: isize = 4;
 }
 
 fn draw_animation_frame(
@@ -219,6 +221,7 @@ impl State for Idle {
 
     fn update(&mut self, player: &mut Player, duration: &Duration, terrain: &Terrain) -> Trans {
         player.mv.update_physics(duration, terrain);
+        player.dj.update(&mut player.mv, &player.input);
         Trans::None
     }
 
@@ -290,6 +293,7 @@ impl State for Running {
         }
 
         player.mv.update_physics(duration, terrain);
+        player.dj.update(&mut player.mv, &player.input);
         Trans::None
     }
 
@@ -350,12 +354,16 @@ impl State for Jumping {
 
         let t = if player.input.attack {
             Trans::Switch(Box::new(Attacking))
-        } else if player.input.jump &&
-            player.mv.frames_from_jump_start <= Player::JUMP_FRAMES_THRESHOLD &&
-            player.mv.velocity.y <= 0.0 && !player.mv.at_ceiling
-        {
-            player.mv.velocity.y = Player::JUMP_SPEED;
-            Trans::None
+        } else if player.input.jump {
+            if player.mv.frames_from_jump_start <= Player::JUMP_FRAMES_THRESHOLD &&
+                player.mv.velocity.y <= 0.0 && !player.mv.at_ceiling
+            {
+                player.mv.velocity.y = Player::JUMP_SPEED;
+                Trans::None
+            } else {
+                player.dj.double_jump(&mut player.mv);
+                Trans::None
+            }
         } else {
             Trans::None
         };
@@ -369,6 +377,7 @@ impl State for Jumping {
         player.mv.velocity.y = y_vel.max(Player::MAX_FALLING_SPEED);
         player.mv.update_physics(duration, terrain);
         let gl = player.lg.grab_ledge(&mut player.mv, &player.input, terrain);
+        player.dj.update(&mut player.mv, &player.input);
 
         if player.mv.on_ground {
             Trans::Pop
@@ -508,6 +517,7 @@ impl State for LedgeGrab {
 
     fn update(&mut self, player: &mut Player, duration: &Duration, terrain: &Terrain) -> Trans {
         player.mv.update_physics(duration, terrain);
+        player.dj.update(&mut player.mv, &player.input);
 
         let ledge_on_left =
             player.lg.ledge_tile.0 as f64 * terrain.tile_size < player.mv.position.x;

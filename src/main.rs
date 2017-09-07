@@ -66,7 +66,7 @@ impl event::EventHandler for Game {
     fn update(&mut self, ctx: &mut Context, dt: Duration) -> GameResult<()> {
         // let update_start = timer::get_time_since_start(ctx);
 
-        let w = self::physics::world::World::new();
+        let mut w = self::physics::world::World::new();
         w.update_areas(&self.camera);
 
         self.player_sm.handle_events(&mut self.player);
