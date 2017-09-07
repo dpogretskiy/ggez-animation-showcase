@@ -78,5 +78,4 @@ impl Debug {
             println!("INSTANCE: {}; Button: {:?}", instance, btn);
         }
     }
-
 }

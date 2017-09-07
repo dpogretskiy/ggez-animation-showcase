@@ -45,14 +45,17 @@ impl LedgeGrabbing {
                         LedgeGrabbing::GRAB_LEDGE_TILE_OFFSET,
                 );
                 bottom_y = terrain.get_tile_y_at_point(
-                    mv.aabb.center.y + aabb_corner_offset.y - LedgeGrabbing::GRAB_LEDGE_TILE_OFFSET,
+                    mv.aabb.center.y + aabb_corner_offset.y -
+                        LedgeGrabbing::GRAB_LEDGE_TILE_OFFSET,
                 );
             } else {
                 top_y = terrain.get_tile_y_at_point(
-                    mv.aabb.center.y + aabb_corner_offset.y - LedgeGrabbing::GRAB_LEDGE_TILE_OFFSET,
+                    mv.aabb.center.y + aabb_corner_offset.y -
+                        LedgeGrabbing::GRAB_LEDGE_TILE_OFFSET,
                 );
                 bottom_y = terrain.get_tile_y_at_point(
-                    mv.aabb.center.y + aabb_corner_offset.y - LedgeGrabbing::GRAB_LEDGE_END_Y,
+                    mv.aabb.center.y + aabb_corner_offset.y -
+                        LedgeGrabbing::GRAB_LEDGE_END_Y,
                 );
             };
 
@@ -74,7 +77,7 @@ impl LedgeGrabbing {
                             LedgeGrabbing::GRAB_LEDGE_START_Y +
                             LedgeGrabbing::GRAB_LEDGE_TILE_OFFSET;
 
-                        mv.velocity = Vector2::new(0.0, 0.0);
+                        mv.velocity = Vector2::new(mv.velocity.x / 2.0, 0.0);
                         return true;
                     }
                 };

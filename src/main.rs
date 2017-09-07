@@ -51,11 +51,15 @@ impl Game {
 
         let (w, h) = (ctx.conf.window_width, ctx.conf.window_height);
 
+        let hc = h as f64 / w as f64;
+
+        let fov = 1600.0;
+
         Ok(Game {
             player: p,
             player_sm: sm,
             level,
-            camera: Camera::new(w, h, 1600.0, 1200.0),
+            camera: Camera::new(w, h, fov, hc * fov),
             fixed_update: Duration::from_secs(0),
         })
     }
@@ -90,6 +94,7 @@ impl event::EventHandler for Game {
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx);
+
         let camera = &self.camera;
 
         self.level.level.assets.background.draw_camera(
@@ -168,11 +173,13 @@ impl event::EventHandler for Game {
                     self.player.input.left = false
                 }
             }
-            Axis::LeftY => if value > 7500 {
-                self.player.input.down = true
-            } else {
-                self.player.input.down = false
-            },
+            Axis::LeftY => {
+                if value > 7500 {
+                    self.player.input.down = true
+                } else {
+                    self.player.input.down = false
+                }
+            }
             _ => (),
         }
 
@@ -184,14 +191,17 @@ use level::*;
 
 pub fn main() {
     let c = conf::Conf {
-        window_width: 800,
-        window_height: 600,
+        window_width: 1850,
+        window_height: 800,
         resizable: false,
         vsync: false,
         ..Default::default()
     };
     let ctx = &mut Context::load_from_conf("config", "me", c).unwrap();
+    graphics::set_default_filter(ctx, graphics::FilterMode::Nearest);
     let mut state = Game::new(ctx).unwrap();
+
+    println!("{:?}", graphics::get_renderer_info(ctx));
 
     event::run(ctx, &mut state).unwrap();
 }

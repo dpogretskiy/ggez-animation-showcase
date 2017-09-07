@@ -9,6 +9,9 @@ pub struct MovingObject {
     pub old_position: Vector2,
     pub position: Vector2,
 
+    pub old_accel: Vector2,
+    pub accel: Vector2,
+
     pub old_velocity: Vector2,
     pub velocity: Vector2,
 
@@ -39,6 +42,8 @@ impl MovingObject {
         MovingObject {
             old_position: position.clone(),
             position: position.clone(),
+            old_accel: Vector2::new(0.0, 0.0),
+            accel: Vector2::new(0.0, 0.0),
             old_velocity: Vector2::new(0.0, 0.0),
             velocity: Vector2::new(0.0, 0.0),
             aabb: aabb,
@@ -60,12 +65,14 @@ impl MovingObject {
     pub fn update_physics(&mut self, time: &Duration, terrain: &Terrain) {
         self.old_position = self.position;
         self.old_velocity = self.velocity;
+        self.old_accel = self.accel;
 
         self.was_on_ground = self.on_ground;
         self.was_at_ceiling = self.at_ceiling;
         self.pushed_left_wall = self.pushes_left_wall;
         self.pushed_right_wall = self.pushes_right_wall;
 
+        self.velocity += self.accel * seconds(time);
         self.position += self.velocity * seconds(time);
 
         let mut ground_y = 0.0;
@@ -89,6 +96,7 @@ impl MovingObject {
                 self.pushes_left_wall = true;
             };
             self.velocity.x = self.velocity.x.max(0.0);
+            self.accel.x = self.accel.x.max(0.0);
         } else {
             self.pushes_left_wall = false;
         }
@@ -99,6 +107,7 @@ impl MovingObject {
                 self.pushes_right_wall = true;
             }
             self.velocity.x = self.velocity.x.min(0.0);
+            self.accel.x = self.accel.x.min(0.0);
         } else {
             self.pushes_right_wall = false;
         }
@@ -149,8 +158,9 @@ impl MovingObject {
                     self.on_platform = false;
                     return true;
                 } else if terrain.is_one_way_platform(tile_index_x, tile_index_y) &&
-                    (checked_tile.y - *ground_y).abs() <=
-                        MovingObject::PLATFORM_THRESHOLD + self.old_position.y - self.position.y
+                           (checked_tile.y - *ground_y).abs() <=
+                               MovingObject::PLATFORM_THRESHOLD + self.old_position.y -
+                                   self.position.y
                 {
                     self.on_platform = true;
                 };
@@ -246,14 +256,16 @@ impl MovingObject {
         let center = self.position + self.aabb.offset;
         let old_center = self.old_position + self.aabb.offset;
         *wall_x = 0.0;
-        let old_bottom_right = round_vector(
-            old_center + Vector2::new(self.aabb.half_size().x, -self.aabb.half_size().y) +
-                Vector2::new(1.0, 0.0),
-        );
-        let new_bottom_right = round_vector(
-            center + Vector2::new(self.aabb.half_size().x, -self.aabb.half_size().y) +
-                Vector2::new(1.0, 0.0),
-        );
+        let old_bottom_right =
+            round_vector(
+                old_center + Vector2::new(self.aabb.half_size().x, -self.aabb.half_size().y) +
+                    Vector2::new(1.0, 0.0),
+            );
+        let new_bottom_right =
+            round_vector(
+                center + Vector2::new(self.aabb.half_size().x, -self.aabb.half_size().y) +
+                    Vector2::new(1.0, 0.0),
+            );
         let end_x = terrain.get_tile_x_at_point(new_bottom_right.x);
         let beg_x = cmp::min(terrain.get_tile_x_at_point(old_bottom_right.x) + 1, end_x);
         let dist = cmp::max((end_x - beg_x).abs(), 1);

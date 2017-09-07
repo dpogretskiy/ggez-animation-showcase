@@ -75,10 +75,55 @@ impl Player {
         };
     }
 
+    pub fn movement(&mut self) {
+        match self.direction {
+            Direction::Left => {
+                if self.mv.pushes_left_wall {
+                    self.stop();
+                } else {
+                    self.mv.accel.x = -Player::WALK_ACCEL;
+                    self.mv.velocity.x = (-Player::WALK_SPEED / 2.0).min(self.mv.velocity.x).max(
+                        -Player::WALK_SPEED,
+                    );
+                }
+            }
+            Direction::Right => {
+                if self.mv.pushes_right_wall {
+                    self.stop();
+                } else {
+                    self.mv.accel.x = Player::WALK_ACCEL;
+                    self.mv.velocity.x = (Player::WALK_SPEED / 2.0).max(self.mv.velocity.x).min(
+                        Player::WALK_SPEED,
+                    );
+                }
+            }
+        }
+    }
+
+    pub fn stop(&mut self) {
+        self.mv.accel.x = 0.0;
+        self.mv.velocity.x = 0.0;
+    }
+
+    pub fn slow_down(&mut self, fast: bool) {
+        if fast {
+            if self.mv.velocity.x > Player::WALK_ACCEL / 2.0 {
+                self.mv.accel.x = -Player::WALK_ACCEL * 5.0;
+            } else if self.mv.velocity.x < -Player::WALK_ACCEL / 2.0 {
+                self.mv.accel.x = Player::WALK_ACCEL * 5.0;
+            } else {
+                self.stop();
+            }
+        } else {
+            self.mv.accel.x = -self.mv.velocity.x / 3.0;
+        }
+    }
+
     pub const GRAVITY: f64 = -3000.0;
     pub const MAX_FALLING_SPEED: f64 = -4000.0;
     pub const JUMP_SPEED: f64 = 1600.0;
-    pub const WALK_SPEED: f64 = 700.0;
+    pub const WALK_SPEED: f64 = 1100.0;
+    pub const WALK_ACCEL: f64 = 700.0;
     pub const JUMP_FRAMES_THRESHOLD: isize = 4;
 }
 
@@ -183,7 +228,7 @@ pub struct Idle;
 impl State for Idle {
     fn on_start(&mut self, player: &mut Player) {
         player.data.idle.reset();
-        player.mv.velocity = Vector2::new(0.0, 0.0);
+        player.dj.enable();
     }
     fn on_resume(&mut self, player: &mut Player) {
         self.on_start(player);
@@ -220,8 +265,8 @@ impl State for Idle {
     }
 
     fn update(&mut self, player: &mut Player, duration: &Duration, terrain: &Terrain) -> Trans {
+        player.slow_down(true);
         player.mv.update_physics(duration, terrain);
-        player.dj.update(&mut player.mv, &player.input);
         Trans::None
     }
 
@@ -240,6 +285,7 @@ pub struct Running;
 impl State for Running {
     fn on_start(&mut self, player: &mut Player) {
         player.data.running.reset();
+        player.dj.enable();
     }
     fn on_resume(&mut self, player: &mut Player) {
         self.on_start(player);
@@ -279,21 +325,9 @@ impl State for Running {
     }
 
     fn update(&mut self, player: &mut Player, duration: &Duration, terrain: &Terrain) -> Trans {
-        match player.direction {
-            Direction::Left => if player.mv.pushes_left_wall {
-                player.mv.velocity.x = 0.0;
-            } else {
-                player.mv.velocity.x = -Player::WALK_SPEED;
-            },
-            Direction::Right => if player.mv.pushes_right_wall {
-                player.mv.velocity.x = 0.0;
-            } else {
-                player.mv.velocity.x = Player::WALK_SPEED;
-            },
-        }
 
+        player.movement();
         player.mv.update_physics(duration, terrain);
-        player.dj.update(&mut player.mv, &player.input);
         Trans::None
     }
 
@@ -336,20 +370,7 @@ impl State for Jumping {
         };
 
         if player.input.left ^ player.input.right {
-            match player.direction {
-                Direction::Left => if player.mv.pushes_left_wall {
-                    player.mv.velocity.x = 0.0;
-                } else {
-                    player.mv.velocity.x = -Player::WALK_SPEED;
-                },
-                Direction::Right => if player.mv.pushes_right_wall {
-                    player.mv.velocity.x = 0.0;
-                } else {
-                    player.mv.velocity.x = Player::WALK_SPEED;
-                },
-            };
-        } else {
-            player.mv.velocity.x = 0.0;
+            player.movement();
         };
 
         let t = if player.input.attack {
@@ -377,12 +398,14 @@ impl State for Jumping {
         player.mv.velocity.y = y_vel.max(Player::MAX_FALLING_SPEED);
         player.mv.update_physics(duration, terrain);
         let gl = player.lg.grab_ledge(&mut player.mv, &player.input, terrain);
-        player.dj.update(&mut player.mv, &player.input);
 
         if player.mv.on_ground {
             Trans::Pop
         } else if gl {
             Trans::Switch(Box::new(LedgeGrab))
+        } else if !(player.input.left ^ player.input.right) {
+            player.slow_down(false);
+            Trans::None
         } else {
             Trans::None
         }
@@ -506,6 +529,7 @@ pub struct LedgeGrab;
 impl State for LedgeGrab {
     fn on_start(&mut self, player: &mut Player) {
         player.data.idle.reset();
+        player.dj.enable();
     }
     fn on_resume(&mut self, player: &mut Player) {
         self.on_start(player);
@@ -517,13 +541,12 @@ impl State for LedgeGrab {
 
     fn update(&mut self, player: &mut Player, duration: &Duration, terrain: &Terrain) -> Trans {
         player.mv.update_physics(duration, terrain);
-        player.dj.update(&mut player.mv, &player.input);
 
-        let ledge_on_left =
-            player.lg.ledge_tile.0 as f64 * terrain.tile_size < player.mv.position.x;
+        let ledge_on_left = player.lg.ledge_tile.0 as f64 * terrain.tile_size <
+            player.mv.position.x;
         let ledge_on_right = !ledge_on_left;
 
-        if player.input.down || (player.input.right && ledge_on_left) ||
+        let state = if player.input.down || (player.input.right && ledge_on_left) ||
             (player.input.left && ledge_on_right)
         {
             if ledge_on_left {
@@ -537,7 +560,10 @@ impl State for LedgeGrab {
             Trans::Switch(Box::new(Jumping))
         } else {
             Trans::None
-        }
+        };
+
+        player.input.reset_actions();
+        state
     }
 
     fn fixed_update(&mut self, player: &mut Player) -> Trans {
