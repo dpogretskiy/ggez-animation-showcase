@@ -25,11 +25,11 @@ impl LedgeGrabbing {
             (pi.left && mv.pushes_left_wall)
         {
             let aabb_corner_offset = if mv.pushes_right_wall {
-                let mut hs = mv.aabb.half_size().clone();
+                let mut hs = mv.aabb.half_size.clone();
                 hs.x += 1.0;
                 hs
             } else {
-                Vector2::new(-mv.aabb.half_size().x - 1.0, mv.aabb.half_size().y)
+                Vector2::new(-mv.aabb.half_size.x - 1.0, mv.aabb.half_size.y)
             };
 
             let top_y;

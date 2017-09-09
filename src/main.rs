@@ -53,7 +53,7 @@ impl Game {
 
         let hc = h as f64 / w as f64;
 
-        let fov = 1600.0;
+        let fov = w as f64 * 1.5;
 
         Ok(Game {
             player: p,
@@ -75,11 +75,8 @@ impl event::EventHandler for Game {
 
         self.player_sm.handle_events(&mut self.player);
 
-        self.player_sm.update(
-            &mut self.player,
-            &dt,
-            &self.level.terrain,
-        );
+        self.player_sm
+            .update(&mut self.player, &dt, &self.level.terrain);
         if timer::check_update_time(ctx, 30) {
             self.player_sm.fixed_update(&mut self.player);
         };
@@ -97,15 +94,18 @@ impl event::EventHandler for Game {
 
         let camera = &self.camera;
 
-        self.level.level.assets.background.draw_camera(
-            camera,
-            ctx,
-            graphics::Point::new(
-                camera.location().x as f32,
-                camera.location().y as f32,
-            ),
-            0.0,
-        )?;
+        let bd_dp = graphics::DrawParam {
+            src: graphics::Rect::new(0.0, 0.0, 1.0, 1.0),
+            scale: graphics::Point::new(2.0, 2.0),
+            dest: graphics::Point::new(camera.location().x as f32 * 0.9, camera.location().y as f32 * 0.9),
+            ..Default::default()
+        };
+
+        self.level
+            .level
+            .assets
+            .background
+            .draw_ex_camera(camera, ctx, bd_dp)?;
 
         self.player_sm.draw(ctx, camera, &self.player);
 
@@ -173,13 +173,11 @@ impl event::EventHandler for Game {
                     self.player.input.left = false
                 }
             }
-            Axis::LeftY => {
-                if value > 7500 {
-                    self.player.input.down = true
-                } else {
-                    self.player.input.down = false
-                }
-            }
+            Axis::LeftY => if value > 7500 {
+                self.player.input.down = true
+            } else {
+                self.player.input.down = false
+            },
             _ => (),
         }
 
@@ -191,8 +189,8 @@ use level::*;
 
 pub fn main() {
     let c = conf::Conf {
-        window_width: 1850,
-        window_height: 800,
+        window_width: 1600,
+        window_height: 1000,
         resizable: false,
         vsync: false,
         ..Default::default()

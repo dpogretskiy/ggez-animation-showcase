@@ -139,8 +139,8 @@ impl Rect {
 
 impl Positioned for MovingObject {
     fn to_rect(&self) -> Rect {
-        let xy = self.position - self.aabb.half_size() + self.aabb.offset;
-        let wh = self.aabb.half_size() * 2.0;
+        let xy = self.position - self.aabb.half_size + self.aabb.offset;
+        let wh = self.aabb.half_size * 2.0;
         Rect::new(xy.x, xy.y, wh.x, wh.y)
     }
 }

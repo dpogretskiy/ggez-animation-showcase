@@ -2,14 +2,13 @@ mod aabb;
 mod moving_object;
 mod ledge_grabbing;
 mod double_jumping;
-mod physics_nc;
 mod quad_tree;
 pub mod world;
 
-pub use self::aabb::AABB;
-pub use self::moving_object::MovingObject;
-pub use self::ledge_grabbing::LedgeGrabbing;
-pub use self::double_jumping::DoubleJumping;
+pub use self::aabb::*;
+pub use self::moving_object::*;
+pub use self::ledge_grabbing::*;
+pub use self::double_jumping::*;
 
 use super::Vector2;
 use std::time::Duration;
