@@ -12,7 +12,7 @@ nalgebra = "0.13"
 specs = "*"
 
 [dependencies.tilesheet-marker]
-path = "../tilesheet-marker"
+path = "../spritesheet-marker"
 version = "0.0.1"
 
 [features]
