@@ -1,7 +1,11 @@
 use std::collections::HashMap;
+
+use super::LoadedAssets;
 use marker::*;
 use marker::geom::Rect;
-use super::MarkedTiles;
+
+use ggez::graphics::spritebatch::*;
+use ggez::graphics::Image;
 
 use rand;
 
@@ -27,41 +31,39 @@ pub struct LevelAssetIndex {
 }
 
 impl LevelAssetIndex {
-    pub fn build(ground: &MarkedTiles, objects: &MarkedTiles) -> LevelAssetIndex {
-        let mut ground_sqr: HashMap<Square, Vec<Rect>> = HashMap::with_capacity(3);
+    pub fn build(loaded: &LoadedAssets) -> LevelAssetIndex {
+        let mut ground_sqr: HashMap<Square, Vec<Rect>> = HashMap::new();
         let mut platform_hor: HashMap<Horizontal, Vec<Rect>> = HashMap::with_capacity(3);
         let mut ground_obj = vec![];
         let mut surface_obj = vec![];
 
-        for gd in ground.data.iter() {
+        for gd in loaded.ground.data.iter() {
             match &gd.markers {
-                &SpriteType::Ground { square: ref sqr } => {
-                    for s in sqr.iter() {
-                        let mut p = true;
-                        {
-                            let entry = ground_sqr.get_mut(s);
-                            if let Some(e) = entry {
-                                e.push(gd.on_screen_frame.clone());
-                                p = false;
-                            };
-                        }
-                        if p {
-                            ground_sqr.insert(s.clone(), vec![gd.on_screen_frame.clone()]);
+                &SpriteType::Ground { square: ref sqr } => for s in sqr.iter() {
+                    let mut p = true;
+                    {
+                        let entry = ground_sqr.get_mut(s);
+                        if let Some(e) = entry {
+                            e.push(gd.on_screen_frame.clone());
+                            p = false;
                         };
                     }
-                }
-                &SpriteType::Platform { horizontal: ref hor } => {
-                    for h in hor.iter() {
-                        platform_hor.entry(h.clone()).or_insert({
-                            vec![gd.on_screen_frame.clone()]
-                        });
-                    }
-                }
+                    if p {
+                        ground_sqr.insert(s.clone(), vec![gd.on_screen_frame.clone()]);
+                    };
+                },
+                &SpriteType::Platform {
+                    horizontal: ref hor,
+                } => for h in hor.iter() {
+                    platform_hor
+                        .entry(h.clone())
+                        .or_insert({ vec![gd.on_screen_frame.clone()] });
+                },
                 &SpriteType::Object => ground_obj.push(gd.on_screen_frame.clone()),
             }
         }
 
-        for od in objects.data.iter() {
+        for od in loaded.objects.data.iter() {
             match od.markers {
                 SpriteType::Object => surface_obj.push(od.on_screen_frame.clone()),
                 _ => (),
@@ -74,7 +76,9 @@ impl LevelAssetIndex {
                 ground: ground_obj,
                 surface: surface_obj,
             },
-            platforms: PlatformIndex { horizontal: platform_hor },
+            platforms: PlatformIndex {
+                horizontal: platform_hor,
+            },
         };
 
         index

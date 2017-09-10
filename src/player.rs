@@ -77,26 +77,22 @@ impl Player {
 
     pub fn movement(&mut self) {
         match self.direction {
-            Direction::Left => {
-                if self.mv.pushes_left_wall {
-                    self.stop();
-                } else {
-                    self.mv.accel.x = -Player::WALK_ACCEL;
-                    self.mv.velocity.x = (-Player::WALK_SPEED / 2.0).min(self.mv.velocity.x).max(
-                        -Player::WALK_SPEED,
-                    );
-                }
-            }
-            Direction::Right => {
-                if self.mv.pushes_right_wall {
-                    self.stop();
-                } else {
-                    self.mv.accel.x = Player::WALK_ACCEL;
-                    self.mv.velocity.x = (Player::WALK_SPEED / 2.0).max(self.mv.velocity.x).min(
-                        Player::WALK_SPEED,
-                    );
-                }
-            }
+            Direction::Left => if self.mv.pushes_left_wall {
+                self.stop();
+            } else {
+                self.mv.accel.x = -Player::WALK_ACCEL;
+                self.mv.velocity.x = (-Player::WALK_SPEED / 2.0)
+                    .min(self.mv.velocity.x)
+                    .max(-Player::WALK_SPEED);
+            },
+            Direction::Right => if self.mv.pushes_right_wall {
+                self.stop();
+            } else {
+                self.mv.accel.x = Player::WALK_ACCEL;
+                self.mv.velocity.x = (Player::WALK_SPEED / 2.0)
+                    .max(self.mv.velocity.x)
+                    .min(Player::WALK_SPEED);
+            },
         }
     }
 
@@ -141,7 +137,7 @@ fn draw_animation_frame(
 
     let dest = Point::new(player.mv.position.x as f32, player.mv.position.y as f32);
 
-    (&*ss.marked_tiles.image).draw_ex_camera(
+    (ss.marked_tiles.image).draw_ex_camera(
         camera,
         ctx,
         DrawParam {
@@ -325,7 +321,6 @@ impl State for Running {
     }
 
     fn update(&mut self, player: &mut Player, duration: &Duration, terrain: &Terrain) -> Trans {
-
         player.movement();
         player.mv.update_physics(duration, terrain);
         Trans::None
@@ -542,8 +537,8 @@ impl State for LedgeGrab {
     fn update(&mut self, player: &mut Player, duration: &Duration, terrain: &Terrain) -> Trans {
         player.mv.update_physics(duration, terrain);
 
-        let ledge_on_left = player.lg.ledge_tile.0 as f64 * terrain.tile_size <
-            player.mv.position.x;
+        let ledge_on_left =
+            player.lg.ledge_tile.0 as f64 * terrain.tile_size < player.mv.position.x;
         let ledge_on_right = !ledge_on_left;
 
         let state = if player.input.down || (player.input.right && ledge_on_left) ||

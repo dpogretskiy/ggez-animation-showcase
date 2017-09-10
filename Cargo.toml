@@ -6,7 +6,6 @@ build = "build.rs"
 
 [dependencies]
 rand = "0.3"
-ggez = { version = "0.3.3", features=["cargo-resource-root"] }
 serde_json = "*"
 nalgebra = "0.13"
 specs = "*"
@@ -14,6 +13,10 @@ specs = "*"
 [dependencies.tilesheet-marker]
 path = "../tilesheet-marker"
 version = "0.0.1"
+
+[dependencies.ggez]
+git = "https://github.com/ggez/ggez.git"
+features = ["cargo-resource-root"]
 
 [features]
 cargo-resource-root = []

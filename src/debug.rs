@@ -3,10 +3,10 @@ use ggez::event::*;
 use ggez::graphics;
 use ggez::graphics::DrawMode;
 
-use super::camera::*;
-use super::level::*;
-use super::player::*;
-use super::physics::*;
+use camera::*;
+use level::*;
+use player::*;
+use physics::*;
 
 pub struct Debug;
 
@@ -104,11 +104,13 @@ impl Debug {
                         .aabb
                         .sensor(position, Sensor::TopRight)
                         .right()
+                        .right()
                         .ok(),
                     player
                         .mv
                         .aabb
                         .sensor(position, Sensor::BottomRight)
+                        .right()
                         .right()
                         .ok(),
                 ],

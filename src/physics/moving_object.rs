@@ -266,9 +266,11 @@ impl MovingObject {
         let old_bottom_right = self.aabb
             .sensor(&self.old_position, Sensor::BottomRight)
             .right()
+            .right()
             .ok();
         let new_bottom_right = self.aabb
             .sensor(&self.position, Sensor::BottomRight)
+            .right()
             .right()
             .ok();
         let end_x = terrain.get_tile_x_at_point(new_bottom_right.x);
